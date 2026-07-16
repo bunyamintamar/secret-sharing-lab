@@ -3,12 +3,18 @@
 
 import sys
 
-from tests import test_core, test_encoding, test_web
+from tests import test_core, test_encoding, test_vss, test_vss_encoding
 
 
 def main() -> int:
     failures = 0
-    for name, module in [("core", test_core), ("encoding", test_encoding), ("web", test_web)]:
+    suites = [
+        ("core", test_core),
+        ("encoding", test_encoding),
+        ("vss", test_vss),
+        ("vss_encoding", test_vss_encoding),
+    ]
+    for name, module in suites:
         print(f"\n########## {name} ##########")
         failures += module.main()
     print("\n" + "=" * 30)

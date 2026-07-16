@@ -33,16 +33,23 @@ Pay biçimi CLI ile **birebir uyumludur**: `sss.py` ile ürettiğin payları
 `shamir.html` içinde birleştirebilir ya da tersini yapabilirsin (sağlama
 toplamı `zlib.crc32` ile eşleşir).
 
-## Web arayüzü (sunuculu)
+## Doğrulanabilir Sır Paylaşımı — VSS (dağıtıcıya güvenmeme)
 
-Aynı çekirdeğin üstünde çalışan, Python tarafında hesaplayan yerel bir sürüm:
+Klasik SSS'te payları üreten dağıtıcıya güvenmek zorundasın; sana bozuk bir pay
+verirse ancak birleştirme anında anlarsın. **Feldman VSS** bunu çözer: dağıtıcı
+paylarla birlikte açık **taahhütler** yayımlar, herkes kendi payının doğru
+olduğunu sırrı öğrenmeden kanıtlar, hileli dağıtıcı anında yakalanır.
 
 ```bash
-python3 web/server.py
+python3 vss.py
 ```
 
-Tarayıcıda `http://127.0.0.1:8765` açılır. Yalnızca `127.0.0.1`'e bağlanır.
-Çevrimdışı tek dosya sürümüyle aynı arayüzü sunar; kripto Python'da çalışır.
+Menü: sırrı böl (taahhütlerle) · **payımı doğrula** · payları birleştir
+(isteğe bağlı doğrulamayla, bozuk paylar elenir) · açıklama.
+
+Şema: RFC 3526 2048-bit güvenli asal grubu, `C_j = g^(a_j) mod p` taahhütleri,
+`g^pay == Π C_j^(x^j)` doğrulaması, `Z_q` üzerinde Lagrange. Sır en fazla ~254
+bayt (tek grup elemanı olarak kodlanır). Ayrıntı: [shamir/vss.py](shamir/vss.py).
 
 ### Örnek
 
@@ -79,21 +86,22 @@ SSS1-dba9-3-2-88cfe0cad01d356751...-b15f
 ## Proje yapısı
 
 ```
-shamir.html            Tek dosya, sunucusuz tarayıcı arayüzü (çift tıkla)
-sss.py                 Konsol uygulaması (giriş noktası)
+shamir.html            Tek dosya, sunucusuz tarayıcı arayüzü (temel SSS)
+sss.py                 Temel SSS konsol uygulaması (GF(256))
+vss.py                 Doğrulanabilir SS konsol uygulaması (Feldman VSS)
 run_tests.py           Tüm testleri çalıştırır
 shamir/
   gf256.py             GF(256) aritmetiği (log/antilog tabloları)
-  core.py              split / combine (Lagrange interpolasyonu)
-  encoding.py          Pay dizesi kodla/çöz (set kimliği + CRC)
+  core.py              Temel SSS: split / combine (Lagrange)
+  encoding.py          SSS pay dizesi kodla/çöz (set kimliği + CRC)
+  vss.py               Feldman VSS: split / verify_share / combine (Z_q)
+  vss_encoding.py      VSS pay + taahhüt dizesi kodla/çöz
   ui.py                Renkli konsol yardımcıları
-web/
-  server.py            Yerel web sunucusu + JSON API (stdlib http.server)
-  static/              index.html, style.css, app.js (tek sayfa arayüz)
 tests/
   test_core.py         Cisim aksiyomları + böl/birleştir round-trip
-  test_encoding.py     Kodlama round-trip + sağlama + biçim hataları
-  test_web.py          Web API iş mantığı (split/combine, doğrulama)
+  test_encoding.py     SSS kodlama round-trip + sağlama + biçim
+  test_vss.py          VSS round-trip + doğrulama + hile yakalama
+  test_vss_encoding.py VSS pay/taahhüt kodlama round-trip
 ```
 
 ## Testler
@@ -110,5 +118,7 @@ python3 run_tests.py
   için idealdir.
 - **Payları ayrı yerlerde sakla.** Hepsi tek yerdeyse şema anlamsızdır.
 - **En az `k` payı kaybedersen sır kurtulamaz** — bilinçli bir ödünleşimdir.
+- **Dağıtıcıya güvenmiyorsan** temel SSS yerine `vss.py` (Feldman VSS) kullan:
+  bozuk/hileli paylar taahhütlerle doğrulanarak yakalanır.
 - Eğitim amaçlıdır; üretim ortamı için gözden geçirilmiş, denetlenmiş bir
   kütüphane (ör. SLIP-0039 uygulamaları) tercih edilmelidir.
