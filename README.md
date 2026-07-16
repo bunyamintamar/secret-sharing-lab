@@ -23,6 +23,19 @@ Menüden:
 Renkler otomatik: gerçek bir terminalde renkli, boru/dosyaya yazarken düz metin
 (`NO_COLOR=1` ile de kapatılabilir).
 
+## Web arayüzü
+
+Aynı çekirdeğin üstünde çalışan yerel bir web arayüzü:
+
+```bash
+python3 web/server.py
+```
+
+Tarayıcıda `http://127.0.0.1:8765` açılır. Yalnızca `127.0.0.1`'e bağlanır —
+sır makinenden dışarı çıkmaz. Üç sekme: **sırrı böl**, **payları birleştir**
+(yapıştır veya dosyadan yükle), **nasıl çalışır**. Payları kopyalayabilir veya
+tek `.txt` olarak indirebilirsin.
+
 ### Örnek
 
 ```
@@ -65,9 +78,13 @@ shamir/
   core.py              split / combine (Lagrange interpolasyonu)
   encoding.py          Pay dizesi kodla/çöz (set kimliği + CRC)
   ui.py                Renkli konsol yardımcıları
+web/
+  server.py            Yerel web sunucusu + JSON API (stdlib http.server)
+  static/              index.html, style.css, app.js (tek sayfa arayüz)
 tests/
   test_core.py         Cisim aksiyomları + böl/birleştir round-trip
   test_encoding.py     Kodlama round-trip + sağlama + biçim hataları
+  test_web.py          Web API iş mantığı (split/combine, doğrulama)
 ```
 
 ## Testler

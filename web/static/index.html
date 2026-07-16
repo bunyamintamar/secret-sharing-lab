@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shamir Secret Sharing</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="wrap">
+    <header class="top">
+      <h1>Shamir Secret Sharing</h1>
+      <p class="sub">Bir sırrı <b>n</b> paya böl; herhangi <b>k</b> pay onu geri getirir, azı hiçbir şey söylemez.</p>
+    </header>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab is-active" data-tab="split" role="tab">Sırrı böl</button>
+      <button class="tab" data-tab="combine" role="tab">Payları birleştir</button>
+      <button class="tab" data-tab="about" role="tab">Nasıl çalışır?</button>
+    </nav>
+
+    <!-- BÖL -->
+    <section class="panel is-active" data-panel="split">
+      <label class="field">
+        <span class="label">Sır</span>
+        <textarea id="secret" rows="3" placeholder="Örn. parola, anahtar veya kurtarma cümlesi"></textarea>
+        <span class="hint" id="secret-hint">0 bayt</span>
+      </label>
+
+      <div class="row">
+        <label class="field">
+          <span class="label">Toplam pay (n)</span>
+          <input id="n" type="number" min="2" max="255" value="5">
+        </label>
+        <label class="field">
+          <span class="label">Eşik (k)</span>
+          <input id="k" type="number" min="2" max="255" value="3">
+        </label>
+      </div>
+      <p class="hint" id="scheme-hint"></p>
+
+      <button class="primary" id="do-split">Paylara böl</button>
+      <p class="error" id="split-error" hidden></p>
+
+      <div id="split-result" hidden>
+        <div class="result-head">
+          <span id="split-summary"></span>
+          <div class="actions">
+            <button class="ghost" id="copy-all">Tümünü kopyala</button>
+            <button class="ghost" id="download-all">.txt indir</button>
+          </div>
+        </div>
+        <ul class="shares" id="shares"></ul>
+        <p class="warn">Payları farklı yerlerde sakla. En az k payı kaybedersen sır kurtulamaz.</p>
+      </div>
+    </section>
+
+    <!-- BİRLEŞTİR -->
+    <section class="panel" data-panel="combine">
+      <label class="field">
+        <span class="label">Paylar</span>
+        <textarea id="shares-in" rows="6" placeholder="Her satıra bir pay yapıştır:&#10;SSS1-....&#10;SSS1-...."></textarea>
+        <span class="hint">Her satır bir pay. Dosyadan yapıştırabilir ya da yükleyebilirsin.</span>
+      </label>
+      <div class="row">
+        <label class="filebtn">
+          Dosya(lar)dan ekle
+          <input id="file-in" type="file" accept=".txt" multiple hidden>
+        </label>
+        <button class="primary grow" id="do-combine">Sırrı geri getir</button>
+      </div>
+      <p class="error" id="combine-error" hidden></p>
+      <div id="combine-result" hidden>
+        <span class="label">Geri getirilen sır</span>
+        <div class="secret-out" id="secret-out"></div>
+        <p class="warn" id="combine-warn" hidden></p>
+      </div>
+    </section>
+
+    <!-- HAKKINDA -->
+    <section class="panel" data-panel="about">
+      <div class="about">
+        <p>Bir <b>(k, n) eşik şeması</b>: sır, derecesi (k-1) olan gizli bir polinomun sabit terimidir. Paylar bu eğri üzerindeki noktalardır.</p>
+        <ul>
+          <li><b>Herhangi k pay</b> eğriyi benzersiz belirler → sır geri gelir.</li>
+          <li><b>k'den az pay</b> sonsuz eğriye uyar → sıfır bilgi (her sır eşit olası).</li>
+        </ul>
+        <p>Sır UTF-8 baytlara çevrilir ve her bayt <b>GF(256)</b> sonlu cisminde bağımsız paylaşılır (toplama = XOR, çarpma = AES polinomu modülü). Böylece taşma ve sızıntı olmaz.</p>
+        <p class="muted">Bu arayüz yalnızca <code>127.0.0.1</code>'de çalışır; sır makinenden dışarı çıkmaz. Eğitim amaçlıdır.</p>
+      </div>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

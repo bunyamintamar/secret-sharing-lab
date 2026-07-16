@@ -3,12 +3,12 @@
 
 import sys
 
-from tests import test_core, test_encoding
+from tests import test_core, test_encoding, test_web
 
 
 def main() -> int:
     failures = 0
-    for name, module in [("core", test_core), ("encoding", test_encoding)]:
+    for name, module in [("core", test_core), ("encoding", test_encoding), ("web", test_web)]:
         print(f"\n########## {name} ##########")
         failures += module.main()
     print("\n" + "=" * 30)
