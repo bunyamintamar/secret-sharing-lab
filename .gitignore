@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# İşletim sistemi
+.DS_Store
+
+# Editör
+.vscode/
+.idea/
+
+# Claude Code oturum dosyaları
+.claude/
+
+# Üretilmiş paylar (sır içerebilir — asla commit'lenmemeli)
+paylar/
+*.share
