@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shamir Secret Sharing</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --surface-2:#f0f2f5; --text:#1a1c1f; --muted:#6b7280;
+  --border:#e3e6ea; --accent:#4f46b7; --accent-ink:#fff; --ok:#197a4c; --ok-bg:#e6f5ec;
+  --warn:#8a5a00; --warn-bg:#fdf3e0; --err:#b23b3b; --err-bg:#fcebeb;
+  --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace; --radius:12px;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#16181c; --surface:#1e2126; --surface-2:#262a30; --text:#e8eaed; --muted:#9aa0aa;
+  --border:#333840; --accent:#8b82e6; --accent-ink:#16181c; --ok:#6bd39a; --ok-bg:#17301f;
+  --warn:#e0b060; --warn-bg:#332711; --err:#ec8080; --err-bg:#331717;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:640px;margin:0 auto;padding:2rem 1.25rem 4rem}
+.top h1{margin:0 0 .25rem;font-size:1.6rem;letter-spacing:-.02em}
+.top .sub{margin:0;color:var(--muted)}
+.top b{color:var(--accent);font-weight:600}
+.badge{display:inline-block;margin-top:.6rem;font-size:.78rem;color:var(--ok);
+  background:var(--ok-bg);border:1px solid var(--ok);border-radius:20px;padding:.1rem .7rem}
+.tabs{display:flex;gap:.25rem;margin:1.25rem 0 1rem;border-bottom:1px solid var(--border)}
+.tab{appearance:none;border:0;background:none;cursor:pointer;padding:.6rem .9rem;
+  font:inherit;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab:hover{color:var(--text)}
+.tab.is-active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.panel{display:none}
+.panel.is-active{display:block;animation:fade .2s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.field{display:flex;flex-direction:column;gap:.35rem;margin-bottom:1rem}
+.label{font-size:.85rem;font-weight:600;color:var(--muted)}
+textarea,input[type=number]{font:inherit;color:var(--text);background:var(--surface);
+  border:1px solid var(--border);border-radius:10px;padding:.7rem .8rem;width:100%;resize:vertical}
+textarea{font-family:var(--mono);font-size:.95rem}
+textarea:focus,input:focus{outline:2px solid var(--accent);border-color:transparent}
+.row{display:flex;gap:1rem}
+.row .field{flex:1}
+.hint{font-size:.8rem;color:var(--muted);margin:0}
+.muted{color:var(--muted)}
+button.primary{appearance:none;border:0;cursor:pointer;font:inherit;font-weight:600;
+  background:var(--accent);color:var(--accent-ink);padding:.75rem 1.2rem;border-radius:10px;width:100%}
+button.primary:hover{filter:brightness(1.08)}
+button.primary.grow{width:auto;flex:1}
+button.ghost{appearance:none;cursor:pointer;font:inherit;font-size:.82rem;background:var(--surface-2);
+  color:var(--text);border:1px solid var(--border);border-radius:8px;padding:.35rem .7rem}
+button.ghost:hover{border-color:var(--accent)}
+.filebtn{display:inline-flex;align-items:center;cursor:pointer;font-weight:600;background:var(--surface-2);
+  color:var(--text);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;white-space:nowrap}
+.filebtn:hover{border-color:var(--accent)}
+.error{background:var(--err-bg);color:var(--err);border-radius:10px;padding:.6rem .8rem;margin:.5rem 0 0;font-size:.9rem}
+.warn{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:.6rem .8rem;font-size:.85rem}
+.result-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin:1.5rem 0 .75rem;flex-wrap:wrap}
+.result-head span{font-weight:600}
+.actions{display:flex;gap:.4rem}
+.shares{list-style:none;padding:0;margin:0 0 1rem;display:flex;flex-direction:column;gap:.5rem}
+.share{display:flex;align-items:center;gap:.6rem;background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:.55rem .7rem}
+.share .idx{flex:0 0 auto;font-size:.8rem;font-weight:600;color:var(--accent);background:var(--surface-2);
+  border-radius:6px;padding:.15rem .5rem}
+.share code{flex:1;font-family:var(--mono);font-size:.82rem;word-break:break-all}
+.secret-out{font-family:var(--mono);font-size:1.05rem;word-break:break-word;background:var(--ok-bg);
+  color:var(--ok);border:1px solid var(--ok);border-radius:10px;padding:.9rem 1rem;margin:.35rem 0 1rem}
+.about p{margin:0 0 .9rem}
+.about ul{margin:0 0 .9rem;padding-left:1.2rem}
+.about li{margin-bottom:.3rem}
+.about code{font-family:var(--mono);background:var(--surface-2);padding:.1rem .35rem;border-radius:5px;font-size:.9em}
+.about b{font-weight:600}
+.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:var(--text);
+  color:var(--bg);padding:.5rem 1rem;border-radius:8px;font-size:.85rem;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <h1>Shamir Secret Sharing</h1>
+    <p class="sub">Bir sırrı <b>n</b> paya böl; herhangi <b>k</b> pay onu geri getirir, azı hiçbir şey söylemez.</p>
+    <span class="badge">Çevrimdışı · sunucu yok · sır bu sekmeden çıkmaz</span>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab is-active" data-tab="split" role="tab">Sırrı böl</button>
+    <button class="tab" data-tab="combine" role="tab">Payları birleştir</button>
+    <button class="tab" data-tab="about" role="tab">Nasıl çalışır?</button>
+  </nav>
+
+  <section class="panel is-active" data-panel="split">
+    <label class="field">
+      <span class="label">Sır</span>
+      <textarea id="secret" rows="3" placeholder="Örn. parola, anahtar veya kurtarma cümlesi"></textarea>
+      <span class="hint" id="secret-hint">0 bayt</span>
+    </label>
+    <div class="row">
+      <label class="field"><span class="label">Toplam pay (n)</span>
+        <input id="n" type="number" min="2" max="255" value="5"></label>
+      <label class="field"><span class="label">Eşik (k)</span>
+        <input id="k" type="number" min="2" max="255" value="3"></label>
+    </div>
+    <p class="hint" id="scheme-hint"></p>
+    <button class="primary" id="do-split">Paylara böl</button>
+    <p class="error" id="split-error" hidden></p>
+    <div id="split-result" hidden>
+      <div class="result-head">
+        <span id="split-summary"></span>
+        <div class="actions">
+          <button class="ghost" id="copy-all">Tümünü kopyala</button>
+          <button class="ghost" id="download-all">.txt indir</button>
+        </div>
+      </div>
+      <ul class="shares" id="shares"></ul>
+      <p class="warn">Payları farklı yerlerde sakla. En az k payı kaybedersen sır kurtulamaz.</p>
+    </div>
+  </section>
+
+  <section class="panel" data-panel="combine">
+    <label class="field">
+      <span class="label">Paylar</span>
+      <textarea id="shares-in" rows="6" placeholder="Her satıra bir pay yapıştır:&#10;SSS1-....&#10;SSS1-...."></textarea>
+      <span class="hint">Her satır bir pay. Dosyadan yapıştırabilir ya da yükleyebilirsin.</span>
+    </label>
+    <div class="row">
+      <label class="filebtn">Dosya(lar)dan ekle
+        <input id="file-in" type="file" accept=".txt" multiple hidden></label>
+      <button class="primary grow" id="do-combine">Sırrı geri getir</button>
+    </div>
+    <p class="error" id="combine-error" hidden></p>
+    <div id="combine-result" hidden>
+      <span class="label">Geri getirilen sır</span>
+      <div class="secret-out" id="secret-out"></div>
+      <p class="warn" id="combine-warn" hidden></p>
+    </div>
+  </section>
+
+  <section class="panel" data-panel="about">
+    <div class="about">
+      <p>Bir <b>(k, n) eşik şeması</b>: sır, derecesi (k-1) olan gizli bir polinomun sabit terimidir. Paylar bu eğri üzerindeki noktalardır.</p>
+      <ul>
+        <li><b>Herhangi k pay</b> eğriyi benzersiz belirler → sır geri gelir.</li>
+        <li><b>k'den az pay</b> sonsuz eğriye uyar → sıfır bilgi (her sır eşit olası).</li>
+      </ul>
+      <p>Sır UTF-8 baytlara çevrilir ve her bayt <b>GF(256)</b> sonlu cisminde bağımsız paylaşılır (toplama = XOR, çarpma = AES polinomu modülü). Böylece taşma ve sızıntı olmaz.</p>
+      <p class="muted">Tüm hesaplama tarayıcının içinde çalışır; hiçbir veri gönderilmez. Rastgelelik <code>crypto.getRandomValues</code> ile kriptografiktir. Eğitim amaçlıdır.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+
+/* ─── GF(256) sonlu cisim aritmetiği (AES polinomu 0x11B) ─────────────────── */
+const EXP = new Uint8Array(512), LOG = new Uint8Array(256);
+(function buildTables(){
+  const mulNoTable = (a,b)=>{ let p=0; while(b){ if(b&1)p^=a; b>>=1; a<<=1; if(a&0x100)a^=0x11b; } return p; };
+  let x = 1;
+  for(let i=0;i<255;i++){ EXP[i]=x; LOG[x]=i; x = mulNoTable(x, 3); }
+  for(let i=255;i<512;i++) EXP[i] = EXP[i-255];
+})();
+const gmul = (a,b)=> (a===0||b===0) ? 0 : EXP[LOG[a]+LOG[b]];
+const gdiv = (a,b)=>{ if(b===0) throw new Error("sıfıra bölme"); return a===0 ? 0 : EXP[LOG[a]-LOG[b]+255]; };
+function evalPoly(coeffs, x){ let r=0; for(let i=coeffs.length-1;i>=0;i--) r = gmul(r,x) ^ coeffs[i]; return r; }
+function lagrangeAt0(points){
+  let result=0;
+  for(let i=0;i<points.length;i++){
+    let num=1, den=1;
+    for(let j=0;j<points.length;j++){
+      if(i===j) continue;
+      num = gmul(num, points[j].x);
+      den = gmul(den, points[i].x ^ points[j].x);
+    }
+    result ^= gmul(points[i].y, gdiv(num, den));
+  }
+  return result;
+}
+
+/* ─── Böl / birleştir ─────────────────────────────────────────────────────── */
+function splitSecret(bytes, k, n){
+  if(bytes.length===0) throw new Error("Sır boş olamaz.");
+  if(k<2) throw new Error("Eşik (k) en az 2 olmalı.");
+  if(n<k) throw new Error("Pay sayısı (n) eşikten (k) küçük olamaz.");
+  if(n>255) throw new Error("Pay sayısı en fazla 255 olabilir.");
+  const xs = Array.from({length:n},(_,i)=>i+1);
+  const ys = xs.map(()=>[]);
+  for(const sb of bytes){
+    const coeffs = [sb];
+    const rnd = new Uint8Array(k-1);
+    crypto.getRandomValues(rnd);
+    for(const r of rnd) coeffs.push(r);
+    xs.forEach((x,idx)=> ys[idx].push(evalPoly(coeffs, x)));
+  }
+  return xs.map((x,idx)=>({x, y:Uint8Array.from(ys[idx])}));
+}
+function combineShares(shares){
+  const len = shares[0].y.length;
+  const out = new Uint8Array(len);
+  for(let bi=0; bi<len; bi++){
+    const points = shares.map(s=>({x:s.x, y:s.y[bi]}));
+    out[bi] = lagrangeAt0(points);
+  }
+  return out;
+}
+
+/* ─── Pay kodlama:  SSS1-<setid>-<k>-<x>-<hexY>-<crc>  (Python ile uyumlu) ─── */
+function crc16(str){                              // zlib.crc32 & 0xFFFF ile aynı
+  let crc = ~0 >>> 0;
+  for(let i=0;i<str.length;i++){
+    crc ^= str.charCodeAt(i);
+    for(let j=0;j<8;j++) crc = (crc>>>1) ^ (0xEDB88320 & -(crc & 1));
+  }
+  return (~crc >>> 0) & 0xFFFF;
+}
+const hex2 = b => b.toString(16).padStart(2,"0");
+const hex4 = n => (n & 0xFFFF).toString(16).padStart(4,"0");
+const bytesToHex = u8 => Array.from(u8, hex2).join("");
+function hexToBytes(h){
+  if(h.length%2) throw new Error("hex uzunluğu tek");
+  const out = new Uint8Array(h.length/2);
+  for(let i=0;i<out.length;i++){
+    const v = parseInt(h.substr(i*2,2),16);
+    if(Number.isNaN(v)) throw new Error("geçersiz hex");
+    out[i]=v;
+  }
+  return out;
+}
+const newSetId = () => crypto.getRandomValues(new Uint16Array(1))[0];
+
+function encodeShare(x, y, k, setId){
+  const body = `SSS1-${hex4(setId)}-${k}-${x}-${bytesToHex(y)}`;
+  return `${body}-${hex4(crc16(body))}`;
+}
+function decodeShare(text){
+  const parts = text.trim().split("-");
+  if(parts.length!==6 || parts[0]!=="SSS1")
+    throw new Error("Tanınmayan pay biçimi (SSS1-<setid>-<k>-<x>-<hex>-<crc> bekleniyor).");
+  const body = parts.slice(0,5).join("-");
+  if(crc16(body) !== parseInt(parts[5],16))
+    throw new Error("Sağlama toplamı tutmuyor — pay yanlış yazılmış olabilir.");
+  const setId = parseInt(parts[1],16), k = parseInt(parts[2],10), x = parseInt(parts[3],10);
+  const y = hexToBytes(parts[4]);
+  if(!(x>=1 && x<=255)) throw new Error(`Geçersiz pay numarası x=${x}.`);
+  if(!(k>=2)) throw new Error(`Geçersiz eşik k=${k}.`);
+  if(y.length===0) throw new Error("Payın veri kısmı boş.");
+  return {setId, threshold:k, x, y};
+}
+
+/* ─── Arayüz ───────────────────────────────────────────────────────────────── */
+const $ = s=>document.querySelector(s), $$ = s=>document.querySelectorAll(s);
+const enc = new TextEncoder();
+
+$$(".tab").forEach(tab=> tab.addEventListener("click", ()=>{
+  $$(".tab").forEach(t=>t.classList.remove("is-active"));
+  $$(".panel").forEach(p=>p.classList.remove("is-active"));
+  tab.classList.add("is-active");
+  $(`.panel[data-panel="${tab.dataset.tab}"]`).classList.add("is-active");
+}));
+
+function toast(msg){
+  let el=$(".toast");
+  if(!el){ el=document.createElement("div"); el.className="toast"; document.body.appendChild(el); }
+  el.textContent=msg; el.classList.add("show");
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("show"),1600);
+}
+async function copyText(text){
+  try{ await navigator.clipboard.writeText(text); toast("Kopyalandı"); }
+  catch{
+    const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta);
+    ta.select(); try{ document.execCommand("copy"); toast("Kopyalandı"); }catch{ toast("Kopyalanamadı"); }
+    ta.remove();
+  }
+}
+
+const secretEl=$("#secret"), nEl=$("#n"), kEl=$("#k"),
+      secretHint=$("#secret-hint"), schemeHint=$("#scheme-hint");
+function updateHints(){
+  secretHint.textContent = `${enc.encode(secretEl.value).length} bayt (UTF-8)`;
+  const n=parseInt(nEl.value,10), k=parseInt(kEl.value,10);
+  if(Number.isInteger(n)&&Number.isInteger(k)&&n>=2&&k>=2&&k<=n){
+    schemeHint.textContent=`${n} paydan herhangi ${k} tanesi sırrı geri getirir; ${k-1} pay hiçbir şey söylemez.`;
+    schemeHint.style.color="";
+  }else if(k>n){ schemeHint.textContent="Eşik (k), pay sayısından (n) büyük olamaz."; schemeHint.style.color="var(--err)"; }
+  else{ schemeHint.textContent="n ve k en az 2 olmalı."; schemeHint.style.color="var(--err)"; }
+}
+[secretEl,nEl,kEl].forEach(el=>el.addEventListener("input",updateHints));
+updateHints();
+
+let lastShares=[];
+$("#do-split").addEventListener("click", ()=>{
+  const err=$("#split-error"), result=$("#split-result");
+  err.hidden=true;
+  try{
+    const n=parseInt(nEl.value,10), k=parseInt(kEl.value,10);
+    if(!Number.isInteger(n)||!Number.isInteger(k)) throw new Error("n ve k tam sayı olmalı.");
+    const bytes=enc.encode(secretEl.value);
+    const shares=splitSecret(bytes,k,n);
+    const setId=newSetId();
+    lastShares=shares.map(s=>encodeShare(s.x,s.y,k,setId));
+    $("#split-summary").textContent=`${n} pay üretildi · eşik ${k} · set ${hex4(setId)}`;
+    const ul=$("#shares"); ul.innerHTML="";
+    lastShares.forEach((line,i)=>{
+      const li=document.createElement("li"); li.className="share";
+      const idx=document.createElement("span"); idx.className="idx"; idx.textContent=`Pay ${i+1}`;
+      const code=document.createElement("code"); code.textContent=line;
+      const copy=document.createElement("button"); copy.className="ghost"; copy.textContent="Kopyala";
+      copy.addEventListener("click",()=>copyText(line));
+      li.append(idx,code,copy); ul.appendChild(li);
+    });
+    result.hidden=false;
+  }catch(e){ err.textContent=e.message; err.hidden=false; result.hidden=true; }
+});
+$("#copy-all").addEventListener("click",()=>copyText(lastShares.join("\n")));
+$("#download-all").addEventListener("click",()=>{
+  const header="# Shamir Secret Sharing payları\n# Her satır bir pay. Birlestirme icin esik sayida pay gerekir.\n";
+  const blob=new Blob([header+lastShares.join("\n")+"\n"],{type:"text/plain"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="shamir-paylar.txt"; a.click(); URL.revokeObjectURL(a.href);
+});
+
+const sharesIn=$("#shares-in");
+$("#file-in").addEventListener("change", async e=>{
+  const texts=await Promise.all([...e.target.files].map(f=>f.text()));
+  const lines=texts.join("\n").split(/\r?\n/).map(l=>l.trim()).filter(l=>l&&!l.startsWith("#"));
+  const existing=sharesIn.value.trim();
+  sharesIn.value=(existing?existing+"\n":"")+lines.join("\n");
+  e.target.value=""; toast(`${lines.length} pay eklendi`);
+});
+$("#do-combine").addEventListener("click", ()=>{
+  const err=$("#combine-error"), result=$("#combine-result"), warn=$("#combine-warn");
+  err.hidden=true;
+  try{
+    const lines=sharesIn.value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+    const parsed=[]; const seen=new Set();
+    for(const line of lines){
+      const s=decodeShare(line);          // hata olursa mesajıyla yakalanır
+      if(seen.has(s.x)) continue;
+      seen.add(s.x); parsed.push(s);
+    }
+    if(parsed.length<2) throw new Error("En az iki geçerli, benzersiz pay gerekir.");
+    const setIds=new Set(parsed.map(s=>s.setId));
+    const k=Math.min(...parsed.map(s=>s.threshold));
+    if(parsed.length<k) throw new Error(`Yeterli pay yok: ${parsed.length} var, en az ${k} gerekiyor.`);
+
+    const lengths=new Set(parsed.map(s=>s.y.length));
+    if(lengths.size>1) throw new Error("Paylar farklı uzunlukta — farklı sırlara ait olabilir.");
+
+    const secret=combineShares(parsed);
+    const out=$("#secret-out");
+    try{
+      out.textContent=new TextDecoder("utf-8",{fatal:true}).decode(secret);
+    }catch{
+      out.textContent="Ham bayt (hex): "+bytesToHex(secret);
+    }
+    if(setIds.size>1){
+      warn.textContent="Paylar farklı bölmelerden geliyor (set kimlikleri farklı); sonuç anlamsız olabilir.";
+      warn.hidden=false;
+    }else warn.hidden=true;
+    result.hidden=false;
+  }catch(e){ err.textContent=e.message; err.hidden=false; result.hidden=true; }
+});
+</script>
+</body>
+</html>

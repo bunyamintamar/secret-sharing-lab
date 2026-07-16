@@ -23,18 +23,26 @@ Menüden:
 Renkler otomatik: gerçek bir terminalde renkli, boru/dosyaya yazarken düz metin
 (`NO_COLOR=1` ile de kapatılabilir).
 
-## Web arayüzü
+## Tek dosya arayüzü (sunucusuz) — en kolay yol
 
-Aynı çekirdeğin üstünde çalışan yerel bir web arayüzü:
+`shamir.html` dosyasına **çift tıkla**, tarayıcıda açılır. Sunucu yok, internet
+yok — tüm hesaplama (GF(256), Lagrange, pay kodlama) tarayıcının içinde,
+JavaScript ile çalışır. Rastgelelik `crypto.getRandomValues` ile kriptografiktir.
+
+Pay biçimi CLI ile **birebir uyumludur**: `sss.py` ile ürettiğin payları
+`shamir.html` içinde birleştirebilir ya da tersini yapabilirsin (sağlama
+toplamı `zlib.crc32` ile eşleşir).
+
+## Web arayüzü (sunuculu)
+
+Aynı çekirdeğin üstünde çalışan, Python tarafında hesaplayan yerel bir sürüm:
 
 ```bash
 python3 web/server.py
 ```
 
-Tarayıcıda `http://127.0.0.1:8765` açılır. Yalnızca `127.0.0.1`'e bağlanır —
-sır makinenden dışarı çıkmaz. Üç sekme: **sırrı böl**, **payları birleştir**
-(yapıştır veya dosyadan yükle), **nasıl çalışır**. Payları kopyalayabilir veya
-tek `.txt` olarak indirebilirsin.
+Tarayıcıda `http://127.0.0.1:8765` açılır. Yalnızca `127.0.0.1`'e bağlanır.
+Çevrimdışı tek dosya sürümüyle aynı arayüzü sunar; kripto Python'da çalışır.
 
 ### Örnek
 
@@ -71,6 +79,7 @@ SSS1-dba9-3-2-88cfe0cad01d356751...-b15f
 ## Proje yapısı
 
 ```
+shamir.html            Tek dosya, sunucusuz tarayıcı arayüzü (çift tıkla)
 sss.py                 Konsol uygulaması (giriş noktası)
 run_tests.py           Tüm testleri çalıştırır
 shamir/
