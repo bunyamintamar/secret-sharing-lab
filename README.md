@@ -20,7 +20,7 @@ dependencies, all computation local.
 The two browser tools run fully client-side, so they work as static pages on
 GitHub Pages (or any static host). Once Pages is enabled for this repository:
 
-- **Landing page:** `https://<user>.github.io/secret-sharing-lab/`
+- **Landing page:** `https://bunyamintamar.github.io/secret-sharing-lab/`
 - **Shamir:** `.../shamir.html` · **VSS:** `.../vss.html`
 
 Nothing is ever uploaded — the secret never leaves the browser tab. On HTTPS
