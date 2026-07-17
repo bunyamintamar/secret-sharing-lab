@@ -1,7 +1,7 @@
-"""Konsol arayüzü yardımcıları: renkler, kutular, başlıklar ve girdi soruları.
+"""Console UI helpers: colors, boxes, headers, and input prompts.
 
-Sadece standart kütüphane. Renkler yalnızca gerçek bir terminale yazılırken ve
-NO_COLOR ayarlı değilken kullanılır; boru (pipe) veya dosyaya yazımda düz metne düşer.
+Standard library only. Colors are used only when writing to a real terminal and
+NO_COLOR is unset; when piped or redirected to a file it falls back to plain text.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ GRAY = _sgr("90")
 
 
 def _visible_len(text: str) -> int:
-    """ANSI kaçış dizilerini saymadan görünen karakter uzunluğu."""
+    """Visible character length, ignoring ANSI escape sequences."""
     result = 0
     i = 0
     while i < len(text):
@@ -45,7 +45,7 @@ def _visible_len(text: str) -> int:
 
 
 def header(title: str) -> None:
-    """Ekranın üstüne renkli bir başlık şeridi basar."""
+    """Print a colored title banner at the top of the screen."""
     line = "═" * (len(title) + 2)
     print()
     print(f"{CYAN}╔{line}╗{RESET}")
@@ -54,7 +54,7 @@ def header(title: str) -> None:
 
 
 def box(lines: list[str], color: str = CYAN) -> None:
-    """Satırları çerçeveli bir kutu içinde gösterir (ANSI'yi doğru hizalar)."""
+    """Show the lines inside a framed box (aligns correctly around ANSI codes)."""
     width = max((_visible_len(ln) for ln in lines), default=0)
     print(f"{color}┌{'─' * (width + 2)}┐{RESET}")
     for ln in lines:
@@ -88,9 +88,10 @@ def rule() -> None:
 
 
 def ask(prompt: str, validator: Optional[Callable[[str], Optional[str]]] = None) -> str:
-    """Metin girdisi ister. validator, hata mesajı (str) veya None döndürür.
+    """Ask for text input. `validator` returns an error message (str) or None.
 
-    None döndürürse girdi kabul edilir; str döndürürse hata basılır ve tekrar sorulur.
+    If it returns None the input is accepted; if it returns a str, the error is
+    printed and the prompt is repeated.
     """
     while True:
         try:
@@ -107,36 +108,36 @@ def ask(prompt: str, validator: Optional[Callable[[str], Optional[str]]] = None)
 
 
 def ask_int(prompt: str, minimum: int, maximum: int) -> int:
-    """Belirli aralıkta bir tam sayı ister; aralık dışını nazikçe reddeder."""
+    """Ask for an integer within a range; reject out-of-range input politely."""
 
     def validate(raw: str) -> Optional[str]:
         raw = raw.strip()
         if not raw.lstrip("-").isdigit():
-            return "Lütfen bir tam sayı girin."
+            return "Please enter an integer."
         value = int(raw)
         if value < minimum or value > maximum:
-            return f"Değer {minimum} ile {maximum} arasında olmalı."
+            return f"The value must be between {minimum} and {maximum}."
         return None
 
     return int(ask(f"{prompt} {GRAY}[{minimum}–{maximum}]{RESET}", validate).strip())
 
 
 def confirm(prompt: str, default: bool = True) -> bool:
-    """Evet/Hayır sorusu. Boş girdi varsayılanı seçer."""
-    suffix = "[E/h]" if default else "[e/H]"
+    """Yes/No question. Empty input selects the default."""
+    suffix = "[Y/n]" if default else "[y/N]"
     while True:
         answer = ask(f"{prompt} {GRAY}{suffix}{RESET}").strip().lower()
         if answer == "":
             return default
-        if answer in ("e", "evet", "y", "yes"):
+        if answer in ("y", "yes"):
             return True
-        if answer in ("h", "hayır", "hayir", "n", "no"):
+        if answer in ("n", "no"):
             return False
-        error("Lütfen 'e' veya 'h' yazın.")
+        error("Please type 'y' or 'n'.")
 
 
 def pause() -> None:
     try:
-        input(f"\n{GRAY}Devam etmek için Enter'a basın…{RESET} ")
+        input(f"\n{GRAY}Press Enter to continue…{RESET} ")
     except (EOFError, KeyboardInterrupt):
         print()

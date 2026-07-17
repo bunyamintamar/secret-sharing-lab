@@ -1,21 +1,21 @@
-"""Payları güvenli, okunabilir metin dizelerine kodlar / çözer.
+"""Encode/decode shares as safe, human-readable text strings.
 
-Her pay tek satırlık bir dizeye dönüşür. Diyagramlarda uyardığımız gibi payın
-yanında metadata taşınmazsa yıllar sonra kimse birleştiremez — bu yüzden şema,
-eşik (k) ve bir "set kimliği" payın içine gömülür, sonuna da bir sağlama toplamı
-eklenir (yazım hatalarını yakalamak için).
+Each share becomes a single-line string. As the diagrams warn, if metadata is
+not carried alongside a share, nobody can combine it years later — so the scheme
+version, the threshold (k), and a "set id" are embedded into the share, with a
+checksum appended (to catch typos).
 
-Biçim:
+Format:
     SSS1-<setid>-<k>-<x>-<hexY>-<crc>
-      SSS1   : sürüm etiketi
-      setid  : 4 haneli onaltılık; aynı bölmeden çıkan tüm paylarda aynıdır
-               (farklı sırların payları yanlışlıkla karışırsa fark edilir)
-      k      : eşik değeri (birleştirme için gereken pay sayısı)
-      x      : pay numarası (1..255)
-      hexY   : payın bayt verisi (onaltılık)
-      crc    : önceki alanların CRC-16 sağlaması (4 haneli onaltılık)
+      SSS1   : version tag
+      setid  : 4-digit hex; identical for every share from the same split
+               (so shares from different secrets are noticed if mixed)
+      k      : threshold (number of shares needed to combine)
+      x      : share number (1..255)
+      hexY   : the share's byte data (hex)
+      crc    : CRC-16 checksum of the preceding fields (4-digit hex)
 
-Örnek:  SSS1-a3f1-3-2-9e02b755-1a2b
+Example:  SSS1-a3f1-3-2-9e02b755-1a2b
 """
 
 from __future__ import annotations
@@ -28,12 +28,12 @@ _PREFIX = "SSS1"
 
 
 class EncodingError(Exception):
-    """Bir pay dizesi çözülemediğinde / sağlaması tutmadığında atılır."""
+    """Raised when a share string cannot be decoded / its checksum fails."""
 
 
 @dataclass
 class ParsedShare:
-    """Çözülmüş bir pay dizesinin alanları."""
+    """The fields of a decoded share string."""
 
     set_id: int
     threshold: int
@@ -42,7 +42,7 @@ class ParsedShare:
 
 
 def new_set_id() -> int:
-    """Bir bölme işlemi için rastgele 16-bit set kimliği üretir."""
+    """Generate a random 16-bit set id for a split."""
     return secrets.randbits(16)
 
 
@@ -51,18 +51,18 @@ def _crc(body: str) -> int:
 
 
 def encode_share(x: int, y: bytes, threshold: int, set_id: int) -> str:
-    """Bir payı tek satırlık dizeye kodlar."""
+    """Encode a share as a single-line string."""
     body = f"{_PREFIX}-{set_id:04x}-{threshold}-{x}-{y.hex()}"
     return f"{body}-{_crc(body):04x}"
 
 
 def decode_share(text: str) -> ParsedShare:
-    """Bir pay dizesini çözer; biçim veya sağlama hatalıysa EncodingError atar."""
+    """Decode a share string; raise EncodingError on a bad format or checksum."""
     cleaned = text.strip()
     parts = cleaned.split("-")
     if len(parts) != 6 or parts[0] != _PREFIX:
         raise EncodingError(
-            "Tanınmayan pay biçimi. Beklenen: "
+            "Unrecognized share format. Expected: "
             "SSS1-<setid>-<k>-<x>-<hex>-<crc>"
         )
 
@@ -72,10 +72,10 @@ def decode_share(text: str) -> ParsedShare:
     try:
         expected_crc = int(crc_hex, 16)
     except ValueError:
-        raise EncodingError("Sağlama alanı (crc) onaltılık değil.")
+        raise EncodingError("The checksum field (crc) is not hex.")
     if _crc(body) != expected_crc:
         raise EncodingError(
-            "Sağlama toplamı tutmuyor — pay büyük olasılıkla yanlış yazılmış."
+            "Checksum mismatch — the share was most likely mistyped."
         )
 
     try:
@@ -84,13 +84,13 @@ def decode_share(text: str) -> ParsedShare:
         x = int(x_str)
         y = bytes.fromhex(y_hex)
     except ValueError:
-        raise EncodingError("Pay alanları okunamadı (sayı/onaltılık hatası).")
+        raise EncodingError("Could not read the share fields (number/hex error).")
 
     if not (1 <= x <= 255):
-        raise EncodingError(f"Geçersiz pay numarası x={x} (1..255 olmalı).")
+        raise EncodingError(f"Invalid share number x={x} (must be 1..255).")
     if threshold < 2:
-        raise EncodingError(f"Geçersiz eşik değeri k={threshold} (en az 2).")
+        raise EncodingError(f"Invalid threshold k={threshold} (at least 2).")
     if len(y) == 0:
-        raise EncodingError("Payın veri kısmı boş.")
+        raise EncodingError("The share's data part is empty.")
 
     return ParsedShare(set_id=set_id, threshold=threshold, x=x, y=y)

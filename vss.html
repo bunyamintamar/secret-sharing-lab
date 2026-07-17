@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Doğrulanabilir Sır Paylaşımı (VSS)</title>
+<title>Verifiable Secret Sharing (VSS)</title>
 <style>
 :root {
   --bg:#f6f7f9; --surface:#fff; --surface-2:#f0f2f5; --text:#1a1c1f; --muted:#6b7280;
@@ -46,11 +46,9 @@ textarea:focus,input:focus{outline:2px solid var(--accent);border-color:transpar
 button.primary{appearance:none;border:0;cursor:pointer;font:inherit;font-weight:600;
   background:var(--accent);color:var(--accent-ink);padding:.75rem 1.2rem;border-radius:10px;width:100%}
 button.primary:hover{filter:brightness(1.08)}
-button.primary:disabled{opacity:.6;cursor:default}
 button.ghost{appearance:none;cursor:pointer;font:inherit;font-size:.82rem;background:var(--surface-2);
   color:var(--text);border:1px solid var(--border);border-radius:8px;padding:.35rem .7rem}
 button.ghost:hover{border-color:var(--accent)}
-.check{display:flex;align-items:center;gap:.5rem;font-size:.9rem;color:var(--muted);margin:0 0 1rem}
 .error{background:var(--err-bg);color:var(--err);border-radius:10px;padding:.6rem .8rem;margin:.5rem 0 0;font-size:.9rem}
 .warn{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:.6rem .8rem;font-size:.85rem}
 .result-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin:1.5rem 0 .5rem;flex-wrap:wrap}
@@ -84,97 +82,97 @@ button.ghost:hover{border-color:var(--accent)}
 <body>
 <main class="wrap">
   <header class="top">
-    <h1>Doğrulanabilir Sır Paylaşımı (VSS)</h1>
-    <p class="sub">Dağıtıcıya güvenmeden: her pay, sır öğrenilmeden <b>doğrulanabilir</b>. Hileli pay yakalanır.</p>
-    <span class="badge">Çevrimdışı · sunucu yok · sır bu sekmeden çıkmaz</span>
+    <h1>Verifiable Secret Sharing (VSS)</h1>
+    <p class="sub">Without trusting the dealer: every share can be <b>verified</b> without learning the secret. Cheating shares are caught.</p>
+    <span class="badge">Offline · no server · your secret never leaves this tab</span>
   </header>
 
   <nav class="tabs" role="tablist">
-    <button class="tab is-active" data-tab="split" role="tab">Sırrı böl</button>
-    <button class="tab" data-tab="verify" role="tab">Payımı doğrula</button>
-    <button class="tab" data-tab="combine" role="tab">Payları birleştir</button>
-    <button class="tab" data-tab="about" role="tab">Nasıl çalışır?</button>
+    <button class="tab is-active" data-tab="split" role="tab">Split</button>
+    <button class="tab" data-tab="verify" role="tab">Verify my share</button>
+    <button class="tab" data-tab="combine" role="tab">Combine</button>
+    <button class="tab" data-tab="about" role="tab">How it works</button>
   </nav>
 
-  <!-- BÖL -->
+  <!-- SPLIT -->
   <section class="panel is-active" data-panel="split">
     <label class="field">
-      <span class="label">Sır</span>
-      <textarea id="secret" rows="3" placeholder="Örn. parola, anahtar veya kurtarma cümlesi"></textarea>
-      <span class="hint" id="secret-hint">0 bayt</span>
+      <span class="label">Secret</span>
+      <textarea id="secret" rows="3" placeholder="e.g. a password, key, or recovery phrase"></textarea>
+      <span class="hint" id="secret-hint">0 bytes</span>
     </label>
     <div class="row">
-      <label class="field"><span class="label">Toplam pay (n)</span>
+      <label class="field"><span class="label">Total shares (n)</span>
         <input id="n" type="number" min="2" max="255" value="5"></label>
-      <label class="field"><span class="label">Eşik (k)</span>
+      <label class="field"><span class="label">Threshold (k)</span>
         <input id="k" type="number" min="2" max="255" value="3"></label>
     </div>
     <p class="hint" id="scheme-hint"></p>
-    <button class="primary" id="do-split">Paylara böl (taahhütlerle)</button>
+    <button class="primary" id="do-split">Split into shares (with commitments)</button>
     <p class="error" id="split-error" hidden></p>
     <div id="split-result" hidden>
       <div class="result-head">
         <span id="split-summary"></span>
         <div class="actions">
-          <button class="ghost" id="copy-shares">Payları kopyala</button>
-          <button class="ghost" id="download-all">.txt indir</button>
+          <button class="ghost" id="copy-shares">Copy shares</button>
+          <button class="ghost" id="download-all">Download .txt</button>
         </div>
       </div>
       <ul class="shares" id="shares"></ul>
       <div class="commit-box">
-        <span class="lbl">Taahhütler (herkese açık — doğrulama için paylaş)</span>
+        <span class="lbl">Commitments (public — share these for verification)</span>
         <code id="commit-text"></code>
-        <div style="margin-top:.5rem"><button class="ghost" id="copy-commit">Taahhütleri kopyala</button></div>
+        <div style="margin-top:.5rem"><button class="ghost" id="copy-commit">Copy commitments</button></div>
       </div>
-      <p class="warn">Payları gizli tut, taahhütleri açıkça paylaş. Pay sahipleri "Payımı doğrula" ile kendi payını kontrol edebilir.</p>
+      <p class="warn">Keep the shares secret, share the commitments openly. Shareholders can check their share under "Verify my share".</p>
     </div>
   </section>
 
-  <!-- DOĞRULA -->
+  <!-- VERIFY -->
   <section class="panel" data-panel="verify">
     <label class="field">
-      <span class="label">Taahhütler (VCOM1-…)</span>
+      <span class="label">Commitments (VCOM1-…)</span>
       <textarea id="v-commit" rows="3" placeholder="VCOM1-...."></textarea>
     </label>
     <label class="field">
-      <span class="label">Doğrulanacak pay (VSS1-…)</span>
+      <span class="label">Share to verify (VSS1-…)</span>
       <textarea id="v-share" rows="2" placeholder="VSS1-...."></textarea>
     </label>
-    <button class="primary" id="do-verify">Payı doğrula</button>
+    <button class="primary" id="do-verify">Verify share</button>
     <p class="error" id="verify-error" hidden></p>
     <div id="verify-verdict"></div>
   </section>
 
-  <!-- BİRLEŞTİR -->
+  <!-- COMBINE -->
   <section class="panel" data-panel="combine">
     <label class="field">
-      <span class="label">Paylar (her satıra bir tane)</span>
+      <span class="label">Shares (one per line)</span>
       <textarea id="c-shares" rows="5" placeholder="VSS1-....&#10;VSS1-...."></textarea>
     </label>
     <label class="field">
-      <span class="label">Taahhütler — isteğe bağlı</span>
-      <textarea id="c-commit" rows="2" placeholder="VCOM1-…  (verirsen her pay doğrulanır, bozuklar elenir)"></textarea>
+      <span class="label">Commitments — optional</span>
+      <textarea id="c-commit" rows="2" placeholder="VCOM1-…  (if provided, every share is verified and bad ones are dropped)"></textarea>
     </label>
-    <button class="primary" id="do-combine">Sırrı geri getir</button>
+    <button class="primary" id="do-combine">Reconstruct the secret</button>
     <p class="error" id="combine-error" hidden></p>
     <div id="combine-result" hidden>
-      <span class="label">Geri getirilen sır</span>
+      <span class="label">Reconstructed secret</span>
       <div class="secret-out" id="secret-out"></div>
       <p class="warn" id="combine-warn" hidden></p>
     </div>
   </section>
 
-  <!-- HAKKINDA -->
+  <!-- ABOUT -->
   <section class="panel" data-panel="about">
     <div class="about">
-      <p>Klasik Shamir'de payları üreten <b>dağıtıcıya güvenmek</b> zorundasın. Feldman VSS bunu kaldırır: dağıtıcı, katsayılara dair açık <b>taahhütler</b> yayımlar.</p>
+      <p>With classic Shamir you have to <b>trust the dealer</b> who creates the shares. Feldman VSS removes that: the dealer publishes public <b>commitments</b> to the coefficients.</p>
       <ul>
-        <li>Taahhüt <code>C_j = g^(a_j) mod p</code> — sırrı ele vermez (ayrık logaritma zor).</li>
-        <li>Doğrulama: <code>g^pay == Π C_j^(x^j) mod p</code> tutuyorsa pay dürüst.</li>
-        <li>Tutmuyorsa pay bozuk ya da dağıtıcı hile yapmış — <b>anında yakalanır</b>.</li>
+        <li>Commitment <code>C_j = g^(a_j) mod p</code> — reveals nothing about the secret (the discrete log is hard).</li>
+        <li>Verification: if <code>g^share == Π C_j^(x^j) mod p</code> holds, the share is honest.</li>
+        <li>If it fails, the share is corrupted or the dealer cheated — <b>caught immediately</b>.</li>
       </ul>
-      <p>Grup: RFC 3526 2048-bit güvenli asal. Sır <code>Z_q</code>'da tek sayı olarak kodlanır (en fazla ~254 bayt), Lagrange ile geri getirilir.</p>
-      <p class="muted">Tüm hesaplama tarayıcının içinde (BigInt) çalışır; hiçbir veri gönderilmez. Pay/taahhüt biçimi <code>vss.py</code> ile birebir uyumludur. Eğitim amaçlıdır.</p>
+      <p>Group: RFC 3526 2048-bit safe prime. The secret is encoded as a single integer in <code>Z_q</code> (at most ~254 bytes) and recovered by Lagrange interpolation.</p>
+      <p class="muted">All computation runs inside your browser (BigInt); nothing is sent anywhere. The share/commitment format matches <code>vss.py</code> exactly. For educational use.</p>
     </div>
   </section>
 </main>
@@ -182,7 +180,7 @@ button.ghost:hover{border-color:var(--accent)}
 <script>
 "use strict";
 
-/* ─── Grup parametreleri: RFC 3526 2048-bit güvenli asal ───────────────────── */
+/* ─── Group parameters: RFC 3526 2048-bit safe prime ──────────────────────── */
 const P = BigInt("0x" +
   "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1"+
   "29024E088A67CC74020BBEA63B139B22514A08798E3404DD"+
@@ -199,7 +197,7 @@ const Q = (P - 1n) / 2n;
 const G = 4n;
 const MAX_SECRET_BYTES = Math.floor((Q.toString(2).length - 1) / 8) - 1;
 
-/* ─── Modüler aritmetik ────────────────────────────────────────────────────── */
+/* ─── Modular arithmetic ──────────────────────────────────────────────────── */
 function modpow(base, exp, mod){
   base %= mod; if(base < 0n) base += mod;
   let result = 1n;
@@ -210,40 +208,40 @@ function modpow(base, exp, mod){
   }
   return result;
 }
-const modinv = (a) => modpow(((a % Q)+Q)%Q, Q - 2n, Q);   // Q asal (Fermat)
+const modinv = (a) => modpow(((a % Q)+Q)%Q, Q - 2n, Q);   // Q prime (Fermat)
 
 function randomBelow(q){
-  const bytes = Math.ceil(q.toString(2).length / 8) + 8;   // fazladan bayt: sapma ihmal
+  const bytes = Math.ceil(q.toString(2).length / 8) + 8;   // extra bytes: negligible bias
   const buf = new Uint8Array(bytes);
   crypto.getRandomValues(buf);
   let n = 0n; for(const b of buf) n = (n << 8n) | BigInt(b);
   return n % q;
 }
 
-/* ─── Sır kodlama (Z_q içinde tek sayı, 0x01 marker) ──────────────────────── */
+/* ─── Secret encoding (single integer in Z_q, 0x01 marker) ────────────────── */
 function encodeSecret(bytes){
-  if(bytes.length === 0) throw new Error("Sır boş olamaz.");
-  if(bytes.length > MAX_SECRET_BYTES) throw new Error(`Sır çok uzun (en fazla ${MAX_SECRET_BYTES} bayt).`);
+  if(bytes.length === 0) throw new Error("The secret cannot be empty.");
+  if(bytes.length > MAX_SECRET_BYTES) throw new Error(`The secret is too long (at most ${MAX_SECRET_BYTES} bytes).`);
   let n = 1n; for(const b of bytes) n = (n << 8n) | BigInt(b);
-  if(n >= Q) throw new Error("Sır grup mertebesine sığmıyor.");
+  if(n >= Q) throw new Error("The secret does not fit in the group order.");
   return n;
 }
 function decodeSecret(m){
   const out = [];
   while(m > 0n){ out.unshift(Number(m & 0xFFn)); m >>= 8n; }
-  if(out.length === 0 || out[0] !== 1) throw new Error("Geri getirilen değer geçersiz (paylar eksik/hatalı).");
+  if(out.length === 0 || out[0] !== 1) throw new Error("The recovered value is invalid (shares may be missing/wrong).");
   return Uint8Array.from(out.slice(1));
 }
 
-/* ─── Böl / doğrula / birleştir ───────────────────────────────────────────── */
+/* ─── Split / verify / combine ────────────────────────────────────────────── */
 function evalPoly(coeffs, x){
   let r = 0n; for(let i = coeffs.length - 1; i >= 0; i--) r = (r * x + coeffs[i]) % Q;
   return r;
 }
 function splitVSS(bytes, k, n){
-  if(k < 2) throw new Error("Eşik (k) en az 2 olmalı.");
-  if(n < k) throw new Error("Pay sayısı (n) eşikten (k) küçük olamaz.");
-  if(n > 255) throw new Error("Pay sayısı en fazla 255 olabilir.");
+  if(k < 2) throw new Error("The threshold (k) must be at least 2.");
+  if(n < k) throw new Error("The number of shares (n) cannot be less than the threshold (k).");
+  if(n > 255) throw new Error("The number of shares can be at most 255.");
   const coeffs = [encodeSecret(bytes)];
   for(let i = 0; i < k - 1; i++) coeffs.push(randomBelow(Q));
   const shares = [];
@@ -276,7 +274,7 @@ function combineVSS(shares){
   return decodeSecret(((secret % Q) + Q) % Q);
 }
 
-/* ─── CRC-16 (zlib.crc32 & 0xFFFF ile uyumlu, poly 0xEDB88320) ────────────── */
+/* ─── CRC-16 (matches zlib.crc32 & 0xFFFF, poly 0xEDB88320) ───────────────── */
 function crc16(str){
   let crc = 0xFFFFFFFF >>> 0;
   for(let i = 0; i < str.length; i++){
@@ -287,7 +285,7 @@ function crc16(str){
 }
 const hex4 = n => (n & 0xFFFF).toString(16).padStart(4, "0");
 
-/* ─── Pay / taahhüt metin kodlaması (vss.py ile uyumlu) ───────────────────── */
+/* ─── Share / commitment text encoding (matches vss.py) ───────────────────── */
 function encodeShare(x, y, k, setId){
   const body = `VSS1-${hex4(setId)}-${k}-${x}-${y.toString(16)}`;
   return `${body}-${hex4(crc16(body))}`;
@@ -295,10 +293,10 @@ function encodeShare(x, y, k, setId){
 function decodeShare(text){
   const parts = text.trim().split("-");
   if(parts.length !== 6 || parts[0] !== "VSS1")
-    throw new Error("Tanınmayan pay biçimi (VSS1-…).");
+    throw new Error("Unrecognized share format (VSS1-…).");
   const body = parts.slice(0,5).join("-");
   if(crc16(body) !== parseInt(parts[5],16))
-    throw new Error("Pay sağlaması tutmuyor — yanlış yazılmış olabilir.");
+    throw new Error("Share checksum mismatch — it may be mistyped.");
   return {setId: parseInt(parts[1],16), threshold: parseInt(parts[2],10),
           x: parseInt(parts[3],10), y: BigInt("0x"+parts[4])};
 }
@@ -310,18 +308,18 @@ function encodeCommitments(commitments, k, setId){
 function decodeCommitments(text){
   const parts = text.trim().split("-");
   if(parts.length !== 5 || parts[0] !== "VCOM1")
-    throw new Error("Tanınmayan taahhüt biçimi (VCOM1-…).");
+    throw new Error("Unrecognized commitment format (VCOM1-…).");
   const body = parts.slice(0,4).join("-");
   if(crc16(body) !== parseInt(parts[4],16))
-    throw new Error("Taahhüt sağlaması tutmuyor.");
+    throw new Error("Commitment checksum mismatch.");
   const values = parts[3].split(".").filter(h => h !== "").map(h => BigInt("0x"+h));
   const k = parseInt(parts[2],10);
-  if(values.length !== k) throw new Error(`Taahhüt sayısı eşikle (k=${k}) uyuşmuyor.`);
+  if(values.length !== k) throw new Error(`The number of commitments does not match the threshold (k=${k}).`);
   return {setId: parseInt(parts[1],16), threshold: k, values};
 }
 const newSetId = () => crypto.getRandomValues(new Uint16Array(1))[0];
 
-/* ─── Arayüz ───────────────────────────────────────────────────────────────── */
+/* ─── UI ────────────────────────────────────────────────────────────────────── */
 const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s);
 const enc = new TextEncoder();
 
@@ -339,10 +337,10 @@ function toast(msg){
   clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove("show"), 1600);
 }
 async function copyText(text){
-  try{ await navigator.clipboard.writeText(text); toast("Kopyalandı"); }
+  try{ await navigator.clipboard.writeText(text); toast("Copied"); }
   catch{
     const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta);
-    ta.select(); try{ document.execCommand("copy"); toast("Kopyalandı"); }catch{ toast("Kopyalanamadı"); }
+    ta.select(); try{ document.execCommand("copy"); toast("Copied"); }catch{ toast("Copy failed"); }
     ta.remove();
   }
 }
@@ -351,13 +349,13 @@ const secretEl = $("#secret"), nEl = $("#n"), kEl = $("#k"),
       secretHint = $("#secret-hint"), schemeHint = $("#scheme-hint");
 function updateHints(){
   const bytes = enc.encode(secretEl.value).length;
-  secretHint.textContent = `${bytes} bayt (UTF-8, en fazla ${MAX_SECRET_BYTES})`;
+  secretHint.textContent = `${bytes} bytes (UTF-8, at most ${MAX_SECRET_BYTES})`;
   const n = parseInt(nEl.value,10), k = parseInt(kEl.value,10);
   if(Number.isInteger(n) && Number.isInteger(k) && n>=2 && k>=2 && k<=n){
-    schemeHint.textContent = `${n} paydan herhangi ${k} tanesi sırrı geri getirir; her pay ayrıca doğrulanabilir.`;
+    schemeHint.textContent = `Any ${k} of ${n} shares reconstruct the secret; each share can also be verified.`;
     schemeHint.style.color = "";
-  }else if(k>n){ schemeHint.textContent = "Eşik (k), pay sayısından (n) büyük olamaz."; schemeHint.style.color = "var(--err)"; }
-  else{ schemeHint.textContent = "n ve k en az 2 olmalı."; schemeHint.style.color = "var(--err)"; }
+  }else if(k>n){ schemeHint.textContent = "The threshold (k) cannot exceed the number of shares (n)."; schemeHint.style.color = "var(--err)"; }
+  else{ schemeHint.textContent = "n and k must be at least 2."; schemeHint.style.color = "var(--err)"; }
 }
 [secretEl,nEl,kEl].forEach(el => el.addEventListener("input", updateHints));
 updateHints();
@@ -368,18 +366,18 @@ $("#do-split").addEventListener("click", () => {
   err.hidden = true;
   try{
     const n = parseInt(nEl.value,10), k = parseInt(kEl.value,10);
-    if(!Number.isInteger(n) || !Number.isInteger(k)) throw new Error("n ve k tam sayı olmalı.");
+    if(!Number.isInteger(n) || !Number.isInteger(k)) throw new Error("n and k must be integers.");
     const {shares, commitments} = splitVSS(enc.encode(secretEl.value), k, n);
     const setId = newSetId();
     lastShares = shares.map(s => encodeShare(s.x, s.y, k, setId));
     lastCommit = encodeCommitments(commitments, k, setId);
-    $("#split-summary").textContent = `${n} pay · eşik ${k} · set ${hex4(setId)}`;
+    $("#split-summary").textContent = `${n} shares · threshold ${k} · set ${hex4(setId)}`;
     const ul = $("#shares"); ul.innerHTML = "";
     lastShares.forEach((line,i) => {
       const li = document.createElement("li"); li.className = "share";
-      const idx = document.createElement("span"); idx.className = "idx"; idx.textContent = `Pay ${i+1}`;
+      const idx = document.createElement("span"); idx.className = "idx"; idx.textContent = `Share ${i+1}`;
       const code = document.createElement("code"); code.textContent = line;
-      const copy = document.createElement("button"); copy.className = "ghost"; copy.textContent = "Kopyala";
+      const copy = document.createElement("button"); copy.className = "ghost"; copy.textContent = "Copy";
       copy.addEventListener("click", () => copyText(line));
       li.append(idx, code, copy); ul.appendChild(li);
     });
@@ -390,11 +388,11 @@ $("#do-split").addEventListener("click", () => {
 $("#copy-shares").addEventListener("click", () => copyText(lastShares.join("\n")));
 $("#copy-commit").addEventListener("click", () => copyText(lastCommit));
 $("#download-all").addEventListener("click", () => {
-  const txt = "# VSS payları (GIZLI)\n" + lastShares.join("\n") +
-              "\n\n# VSS taahhutleri (ACIK)\n" + lastCommit + "\n";
+  const txt = "# VSS shares (SECRET)\n" + lastShares.join("\n") +
+              "\n\n# VSS commitments (PUBLIC)\n" + lastCommit + "\n";
   const blob = new Blob([txt], {type:"text/plain"});
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-  a.download = "vss-paylar.txt"; a.click(); URL.revokeObjectURL(a.href);
+  a.download = "vss-shares.txt"; a.click(); URL.revokeObjectURL(a.href);
 });
 
 $("#do-verify").addEventListener("click", () => {
@@ -405,13 +403,13 @@ $("#do-verify").addEventListener("click", () => {
     const share = decodeShare($("#v-share").value);
     let note = "";
     if(share.setId !== commits.setId)
-      note = " (Uyarı: pay ve taahhüt set kimlikleri farklı.)";
+      note = " (Warning: the share and commitments have different set ids.)";
     const ok = verifyShare(share.x, share.y, commits.values);
     const div = document.createElement("div");
     div.className = "verdict " + (ok ? "ok" : "bad");
     div.textContent = ok
-      ? `✔ Pay GEÇERLİ (x=${share.x}). Dağıtıcı bu pay için dürüst.` + note
-      : `✖ Pay GEÇERSİZ (x=${share.x}). Taahhütlerle tutmuyor — bozuk ya da hileli. Kullanma.` + note;
+      ? `✔ Share is VALID (x=${share.x}). The dealer is honest for this share.` + note
+      : `✖ Share is INVALID (x=${share.x}). It does not match the commitments — corrupted or cheating. Do not use it.` + note;
     verdict.appendChild(div);
   }catch(e){ err.textContent = e.message; err.hidden = false; }
 });
@@ -430,14 +428,14 @@ $("#do-combine").addEventListener("click", () => {
       if(commits && !verifyShare(s.x, s.y, commits.values)){ dropped.push(s.x); continue; }
       seen.add(s.x); parsed.push(s);
     }
-    if(parsed.length < 2) throw new Error("En az iki geçerli pay gerekir.");
+    if(parsed.length < 2) throw new Error("At least two valid shares are needed.");
     const k = Math.min(...parsed.map(s => s.threshold));
-    if(parsed.length < k) throw new Error(`Yeterli pay yok: ${parsed.length} var, en az ${k} gerekiyor.`);
+    if(parsed.length < k) throw new Error(`Not enough shares: ${parsed.length} present, at least ${k} required.`);
     const secretBytes = combineVSS(parsed);
     const out = $("#secret-out");
     try{ out.textContent = new TextDecoder("utf-8",{fatal:true}).decode(secretBytes); }
-    catch{ out.textContent = "Ham bayt (hex): " + Array.from(secretBytes, b => b.toString(16).padStart(2,"0")).join(""); }
-    if(dropped.length){ warn.textContent = `Doğrulamadan geçemeyen ${dropped.length} pay elendi (x=${dropped.join(", ")}).`; warn.hidden = false; }
+    catch{ out.textContent = "Raw bytes (hex): " + Array.from(secretBytes, b => b.toString(16).padStart(2,"0")).join(""); }
+    if(dropped.length){ warn.textContent = `${dropped.length} share(s) failed verification and were dropped (x=${dropped.join(", ")}).`; warn.hidden = false; }
     else warn.hidden = true;
     result.hidden = false;
   }catch(e){ err.textContent = e.message; err.hidden = false; result.hidden = true; }

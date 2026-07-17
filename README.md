@@ -1,129 +1,128 @@
-# Shamir Secret Sharing — Konsol Uygulaması
+# Secret Sharing — Shamir & Feldman VSS
 
-Bir sırrı (parola, şifreleme anahtarı, kurtarma cümlesi) `n` paya bölen ve
-herhangi `k` payla geri getiren, **saf Python** ile yazılmış eğitim amaçlı bir
-konsol uygulaması. Harici bağımlılık yok — sadece standart kütüphane.
+Split a secret so that any **k** of **n** shares can reconstruct it, while fewer
+than k reveal **nothing**. Two schemes, each available as a friendly console app
+**and** a single self-contained HTML page — pure standard library, zero
+dependencies, all computation local.
 
-> **(k, n) eşik şeması:** herhangi **k** pay sırrı tam olarak geri getirir;
-> **k'den az** pay sıfır bilgi verir (her olası sır eşit derecede olasıdır).
-> Bu güvence hesaplama gücünden bağımsızdır — bilgi-teoriktir.
+> **(k, n) threshold scheme:** any **k** shares reconstruct the secret exactly;
+> **fewer than k** shares leak zero information — every possible secret stays
+> equally likely. For basic Shamir this guarantee is information-theoretic
+> (independent of computing power).
 
-## Hızlı başlangıç
+| Scheme | What it's for | Console | Browser |
+|--------|---------------|---------|---------|
+| **Shamir (GF(256))** | Fast backup/recovery of a password, key, or seed phrase | `python3 sss.py` | `shamir.html` |
+| **Feldman VSS** | Same, **without trusting the dealer** — shares are verifiable, cheating is caught | `python3 vss.py` | `vss.html` |
+
+## Live demo
+
+The two browser tools run fully client-side, so they work as static pages on
+GitHub Pages (or any static host). Once Pages is enabled for this repository:
+
+- **Landing page:** `https://<user>.github.io/<repo>/`
+- **Shamir:** `.../shamir.html` · **VSS:** `.../vss.html`
+
+Nothing is ever uploaded — the secret never leaves the browser tab. On HTTPS
+(GitHub Pages) the "copy" buttons use the native clipboard API.
+
+## Browser tools (no install)
+
+Just open `index.html` (or `shamir.html` / `vss.html`) — double-click the file
+or serve the folder statically. Everything runs in JavaScript:
+
+- **Shamir** works byte-by-byte in the `GF(256)` field (addition = XOR,
+  multiplication modulo the AES polynomial).
+- **VSS** works in a 2048-bit prime field using `BigInt`, and publishes
+  `g^coefficient` commitments so every share is verifiable.
+
+Randomness is cryptographic (`crypto.getRandomValues`). The wire format matches
+the console apps exactly, so a share made in the browser can be combined in the
+CLI and vice versa (checksums match `zlib.crc32`).
+
+## Console apps
 
 ```bash
-python3 sss.py
+python3 sss.py      # basic Shamir Secret Sharing
+python3 vss.py      # verifiable secret sharing (Feldman)
 ```
 
-Menüden:
+Colors are automatic: colored in a real terminal, plain text when piped or
+redirected (also disableable with `NO_COLOR=1`).
 
-1. **Sırrı paylara böl** — sırrı, pay sayısını (`n`) ve eşiği (`k`) sorar, payları üretir, isterse dosyaya kaydeder.
-2. **Payları birleştir** — payları elle yapıştırarak veya bir klasörden yükleyerek sırrı geri getirir.
-3. **Shamir Secret Sharing nedir?** — kısa, görsel bir açıklama.
+`sss.py` menu: split a secret · combine shares · explanation.
+`vss.py` menu: split (with commitments) · **verify my share** · combine
+(optionally verified — bad shares are dropped) · explanation.
 
-Renkler otomatik: gerçek bir terminalde renkli, boru/dosyaya yazarken düz metin
-(`NO_COLOR=1` ile de kapatılabilir).
+### Share format
 
-## Tek dosya arayüzü (sunucusuz) — en kolay yol
-
-`shamir.html` dosyasına **çift tıkla**, tarayıcıda açılır. Sunucu yok, internet
-yok — tüm hesaplama (GF(256), Lagrange, pay kodlama) tarayıcının içinde,
-JavaScript ile çalışır. Rastgelelik `crypto.getRandomValues` ile kriptografiktir.
-
-Pay biçimi CLI ile **birebir uyumludur**: `sss.py` ile ürettiğin payları
-`shamir.html` içinde birleştirebilir ya da tersini yapabilirsin (sağlama
-toplamı `zlib.crc32` ile eşleşir).
-
-## Doğrulanabilir Sır Paylaşımı — VSS (dağıtıcıya güvenmeme)
-
-Klasik SSS'te payları üreten dağıtıcıya güvenmek zorundasın; sana bozuk bir pay
-verirse ancak birleştirme anında anlarsın. **Feldman VSS** bunu çözer: dağıtıcı
-paylarla birlikte açık **taahhütler** yayımlar, herkes kendi payının doğru
-olduğunu sırrı öğrenmeden kanıtlar, hileli dağıtıcı anında yakalanır.
-
-```bash
-python3 vss.py
-```
-
-Menü: sırrı böl (taahhütlerle) · **payımı doğrula** · payları birleştir
-(isteğe bağlı doğrulamayla, bozuk paylar elenir) · açıklama.
-
-Sunucusuz tek dosya sürümü de var: `vss.html` dosyasına **çift tıkla**. Tüm
-işlemler tarayıcıda BigInt ile çalışır; pay/taahhüt biçimi `vss.py` ile birebir
-uyumludur (CLI'da üretileni tarayıcıda doğrulayıp birleştirebilirsin, tersi de).
-
-Şema: RFC 3526 2048-bit güvenli asal grubu, `C_j = g^(a_j) mod p` taahhütleri,
-`g^pay == Π C_j^(x^j)` doğrulaması, `Z_q` üzerinde Lagrange. Sır en fazla ~254
-bayt (tek grup elemanı olarak kodlanır). Ayrıntı: [shamir/vss.py](shamir/vss.py).
-
-### Örnek
+Each share is a single line, carrying its own metadata and a checksum:
 
 ```
-Sır          : Kasa kodu: 42
-Pay sayısı n : 5
-Eşik k       : 3
+SSS1-dba9-3-2-88cfe0cad01d356751...-b15f      (Shamir)
+VSS1-2cf1-3-2-93687d934ffdf1...-34dc          (VSS share)
+VCOM1-2cf1-3-<C0>.<C1>.<C2>-1815              (VSS commitments, public)
+ │    │    │ │  │                   └ CRC-16 checksum (catches typos)
+ │    │    │ │  └ payload
+ │    │    │ └ share number (x)
+ │    │    └ threshold (k)
+ │    └ set id (same for all shares of one split; catches mix-ups)
+ └ version tag
 ```
 
-Beş pay üretilir; herhangi üçü sırrı geri getirir, ikisi hiçbir şey söylemez.
-Her pay tek satırlık bir dizedir:
+## How it works
+
+The secret is the constant term of a random polynomial of degree `k-1`. Each
+share is a point on that curve. Any `k` points determine the polynomial uniquely
+(Lagrange interpolation → the constant term = the secret); `k-1` points fit
+infinitely many curves, so they reveal nothing.
+
+**Feldman VSS** adds verifiability. The dealer publishes commitments
+`C_j = g^(a_j) mod p` (in a group where the discrete log is hard, so the secret
+stays hidden). Anyone checks their share with `g^share == Π C_j^(x^j) mod p`. A
+corrupted share or a cheating dealer is caught immediately — before combining.
+Parameters are the RFC 3526 2048-bit MODP group (a verified safe prime).
+
+## Project structure
 
 ```
-SSS1-dba9-3-2-88cfe0cad01d356751...-b15f
-│    │    │ │ │                     └ sağlama toplamı (yazım hatasını yakalar)
-│    │    │ │ └ pay verisi (onaltılık)
-│    │    │ └ pay numarası (x)
-│    │    └ eşik değeri (k)
-│    └ set kimliği (aynı bölmenin payları; karışıklığı yakalar)
-└ sürüm etiketi
-```
-
-## Nasıl çalışır?
-
-- Sır UTF-8 baytlara çevrilir; **her bayt bağımsız olarak** paylaşılır.
-- Her bayt için derecesi `k-1` olan gizli bir polinom kurulur; sabit terim = sır
-  baytı, diğer katsayılar kriptografik rastgele (`secrets`). Pay `i`, polinomun
-  `x=i` noktasındaki değeridir.
-- Birleştirme, **Lagrange interpolasyonu** ile `f(0)`'ı (sırrı) geri hesaplar.
-- Tüm aritmetik **GF(256)** sonlu cisminde yapılır (toplama = XOR, çarpma =
-  indirgenemez polinom `x⁸+x⁴+x³+x+1` modülü — AES ile aynı). Böylece her işlemin
-  sonucu geçerli bir bayt olur ve sızıntı tam sıfırdır.
-
-## Proje yapısı
-
-```
-shamir.html            Tek dosya, sunucusuz tarayıcı arayüzü (temel SSS)
-vss.html               Tek dosya, sunucusuz tarayıcı arayüzü (Feldman VSS)
-sss.py                 Temel SSS konsol uygulaması (GF(256))
-vss.py                 Doğrulanabilir SS konsol uygulaması (Feldman VSS)
-run_tests.py           Tüm testleri çalıştırır
+index.html             Landing page (links the two browser tools)
+shamir.html            Single-file, serverless browser UI (basic Shamir)
+vss.html               Single-file, serverless browser UI (Feldman VSS)
+sss.py                 Basic Shamir console app (GF(256))
+vss.py                 Verifiable SS console app (Feldman VSS)
+run_tests.py           Runs every test suite
 shamir/
-  gf256.py             GF(256) aritmetiği (log/antilog tabloları)
-  core.py              Temel SSS: split / combine (Lagrange)
-  encoding.py          SSS pay dizesi kodla/çöz (set kimliği + CRC)
+  gf256.py             GF(256) arithmetic (log/antilog tables)
+  core.py              Basic SSS: split / combine (Lagrange)
+  encoding.py          SSS share string encode/decode (set id + CRC)
   vss.py               Feldman VSS: split / verify_share / combine (Z_q)
-  vss_encoding.py      VSS pay + taahhüt dizesi kodla/çöz
-  ui.py                Renkli konsol yardımcıları
+  vss_encoding.py      VSS share + commitment string encode/decode
+  ui.py                Colored console helpers
 tests/
-  test_core.py         Cisim aksiyomları + böl/birleştir round-trip
-  test_encoding.py     SSS kodlama round-trip + sağlama + biçim
-  test_vss.py          VSS round-trip + doğrulama + hile yakalama
-  test_vss_encoding.py VSS pay/taahhüt kodlama round-trip
+  test_core.py         Field axioms + split/combine round-trip
+  test_encoding.py     SSS encoding round-trip + checksum + format
+  test_vss.py          VSS round-trip + verification + cheating detection
+  test_vss_encoding.py VSS share/commitment encoding round-trip
 ```
 
-## Testler
+## Tests
 
 ```bash
 python3 run_tests.py
 ```
 
-## Güvenlik notları
+## Security notes
 
-- **Birleştirme anı tek zayıf noktadır:** paylar bir araya geldiğinde sır bir an
-  için bellekte bütün halde bulunur. Sürekli kullanım gereken senaryolarda
-  (ör. kripto cüzdan) multisig daha uygundur; bu araç güvenli **yedekleme/kurtarma**
-  için idealdir.
-- **Payları ayrı yerlerde sakla.** Hepsi tek yerdeyse şema anlamsızdır.
-- **En az `k` payı kaybedersen sır kurtulamaz** — bilinçli bir ödünleşimdir.
-- **Dağıtıcıya güvenmiyorsan** temel SSS yerine `vss.py` (Feldman VSS) kullan:
-  bozuk/hileli paylar taahhütlerle doğrulanarak yakalanır.
-- Eğitim amaçlıdır; üretim ortamı için gözden geçirilmiş, denetlenmiş bir
-  kütüphane (ör. SLIP-0039 uygulamaları) tercih edilmelidir.
+- **Combining is the one weak moment:** when shares come together, the secret
+  briefly exists whole in memory. For continuous-use scenarios (e.g. a crypto
+  wallet) multisig is a better fit; these tools are ideal for secure
+  **backup/recovery**.
+- **Store shares in separate places.** If they all sit in one place the scheme
+  is pointless.
+- **If you lose more than n−k shares the secret is unrecoverable** — a deliberate
+  trade-off.
+- **If you don't trust the dealer**, use the VSS tools: corrupted or cheating
+  shares are caught by verifying them against the commitments.
+- This is an **educational** project. For production, prefer a reviewed, audited
+  library (e.g. SLIP-0039 implementations).

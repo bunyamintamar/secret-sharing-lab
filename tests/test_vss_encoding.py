@@ -1,6 +1,6 @@
-"""VSS pay/taahhüt kodlama testleri: round-trip, sağlama, biçim, uçtan uca.
+"""VSS share/commitment encoding tests: round-trip, checksum, format, end-to-end.
 
-Bağımsız çalışır:  python3 -m tests.test_vss_encoding   (proje kökünden)
+Runs standalone:  python3 -m tests.test_vss_encoding   (from the project root)
 """
 
 import os
@@ -44,7 +44,7 @@ def test_share_roundtrip() -> None:
     line = encode_share(x=2, y=123456789, threshold=3, set_id=sid)
     p = decode_share(line)
     check(p.x == 2 and p.y == 123456789 and p.threshold == 3 and p.set_id == sid,
-          "pay alanları round-trip")
+          "share fields round-trip")
 
 
 def test_commitments_roundtrip() -> None:
@@ -53,39 +53,39 @@ def test_commitments_roundtrip() -> None:
     line = encode_commitments(vals, threshold=3, set_id=sid)
     p = decode_commitments(line)
     check(p.values == vals and p.threshold == 3 and p.set_id == sid,
-          "taahhütler round-trip")
+          "commitments round-trip")
 
 
 def test_checksum() -> None:
     line = encode_share(x=1, y=0xDEAD, threshold=2, set_id=0x1234)
     bad = line[:-2] + ("00" if line[-2:] != "00" else "11")
-    check(raises(lambda: decode_share(bad)), "bozuk pay sağlaması yakalanır")
+    check(raises(lambda: decode_share(bad)), "corrupted share checksum is caught")
 
 
 def test_bad_formats() -> None:
-    check(raises(lambda: decode_share("merhaba")), "alakasız metin (pay)")
-    check(raises(lambda: decode_commitments("VSS1-1-2-3-4-5")), "yanlış önek (taahhüt)")
+    check(raises(lambda: decode_share("hello")), "unrelated text (share)")
+    check(raises(lambda: decode_commitments("VSS1-1-2-3-4-5")), "wrong prefix (commitments)")
     check(raises(lambda: decode_commitments("VCOM1-0042-3-a.b-0000")),
-          "eksik taahhüt sayısı reddedilir")
+          "wrong commitment count is rejected")
 
 
 def test_end_to_end_encode_verify() -> None:
-    # split -> kodla -> çöz -> doğrula -> birleştir
-    secret = "uçtan uca".encode("utf-8")
+    # split -> encode -> decode -> verify -> combine
+    secret = "end to end".encode("utf-8")
     shares, commits = vss.split(secret, threshold=3, shares=5)
     sid = new_set_id()
     enc_shares = [encode_share(s.x, s.y, 3, sid) for s in shares]
     enc_commits = encode_commitments(commits, 3, sid)
 
     dec_commits = decode_commitments(enc_commits).values
-    # Kodlanmış paylar hâlâ doğrulanıyor mu?
+    # Do the encoded shares still verify?
     ds = [decode_share(e) for e in enc_shares]
     check(all(vss.verify_share(d.x, d.y, dec_commits) for d in ds),
-          "kodlanıp çözülen paylar doğrulanır")
-    # 1,3,5 ile birleştir
+          "encoded-then-decoded shares verify")
+    # combine with 1,3,5
     from shamir.vss import VSSShare
     picked = [VSSShare(ds[i].x, ds[i].y) for i in (0, 2, 4)]
-    check(vss.combine(picked) == secret, "kodlama üzerinden round-trip")
+    check(vss.combine(picked) == secret, "round-trip through the encoding")
 
 
 def main() -> int:
@@ -99,7 +99,7 @@ def main() -> int:
     for test in tests:
         print(f"- {test.__name__}")
         test()
-    print(f"\n{_passed} kontrol geçti, {_failed} başarısız.")
+    print(f"\n{_passed} checks passed, {_failed} failed.")
     return 1 if _failed else 0
 
 

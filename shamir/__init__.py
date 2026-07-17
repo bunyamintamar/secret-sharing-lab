@@ -1,13 +1,13 @@
-"""Shamir Secret Sharing — eğitim amaçlı, saf Python implementasyonu.
+"""Shamir Secret Sharing — educational, pure-Python implementation.
 
-Bu paket sırrı (k, n) eşik şemasıyla paylaşır:
-  - n adet pay üretilir,
-  - herhangi k pay sırrı geri getirir,
-  - k'den az pay sıfır bilgi verir.
+This package splits a secret with a (k, n) threshold scheme:
+  - n shares are produced,
+  - any k shares reconstruct the secret,
+  - fewer than k shares reveal zero information.
 
-Alt modüller:
-  gf256 : GF(256) sonlu cisim aritmetiği (toplama = XOR, çarpma = tablo).
-  core  : sırrı bayt bayt böl/birleştir (Lagrange interpolasyonu).
+Submodules:
+  gf256 : GF(256) finite-field arithmetic (addition = XOR, multiplication = table).
+  core  : split/combine a secret byte by byte (Lagrange interpolation).
 """
 
 from .core import Share, split, combine, SSSError

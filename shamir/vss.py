@@ -1,23 +1,23 @@
-"""Feldman Doğrulanabilir Sır Paylaşımı (VSS).
+"""Feldman Verifiable Secret Sharing (VSS).
 
-Klasik Shamir'de dağıtıcıya güvenmek zorundasın: sana bozuk bir pay verirse
-bunu ancak birleştirme anında (çok geç) anlarsın. Feldman VSS bunu çözer:
-dağıtıcı, polinomun katsayılarına dair açık **taahhütler** (commitments)
-yayımlar. Herkes kendi payının bu taahhütlerle tutarlı olduğunu, sırrı hiç
-öğrenmeden matematiksel olarak doğrular. Hileli bir dağıtıcı anında yakalanır.
+With classic Shamir you have to trust the dealer: if they hand you a bad share,
+you only find out when combining (too late). Feldman VSS fixes this: the dealer
+publishes public **commitments** to the polynomial's coefficients. Everyone can
+verify their own share is consistent with those commitments without learning the
+secret. A cheating dealer is caught immediately.
 
-Şema (büyük asal p, q=(p-1)/2 asal, g order-q üreteci):
-  - Polinom f(x) = a0 + a1 x + ... + a(k-1) x^(k-1),  katsayılar Z_q'da, a0 = sır.
-  - Pay i = f(i) mod q.
-  - Taahhüt C_j = g^(a_j) mod p   (j = 0..k-1).  C_0 = g^sır.
-  - Doğrulama (pay i, s_i):   g^(s_i)  ==  Π_j  C_j^(i^j)   (mod p).
-      Çünkü g^f(i) = g^(Σ a_j i^j) = Π (g^a_j)^(i^j) = Π C_j^(i^j).
-  - Birleştirme: Lagrange interpolasyonu ile f(0) = sır (Z_q üzerinde).
+Scheme (large prime p, q=(p-1)/2 prime, g a generator of the order-q subgroup):
+  - Polynomial f(x) = a0 + a1 x + ... + a(k-1) x^(k-1),  coefficients in Z_q, a0 = secret.
+  - Share i = f(i) mod q.
+  - Commitment C_j = g^(a_j) mod p   (j = 0..k-1).  C_0 = g^secret.
+  - Verification (share i, s_i):   g^(s_i)  ==  Π_j  C_j^(i^j)   (mod p).
+      Because g^f(i) = g^(Σ a_j i^j) = Π (g^a_j)^(i^j) = Π C_j^(i^j).
+  - Combine: Lagrange interpolation to get f(0) = secret (over Z_q).
 
-Not: Bu, GF(256) tabanlı temel SSS'ten ayrı bir şemadır — VSS büyük asal
-cisimde (Z_q) çalışır, çünkü taahhütler ayrık logaritmanın zor olduğu bir
-grupta yaşar. Parametreler RFC 3526 2048-bit MODP grubudur (doğrulanmış
-güvenli asal). Eğitim amaçlıdır.
+Note: this is a separate scheme from the basic GF(256) SSS — VSS works in a large
+prime field (Z_q) because the commitments live in a group where the discrete
+logarithm is hard. The parameters are the RFC 3526 2048-bit MODP group (a
+verified safe prime). For educational use.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from dataclasses import dataclass
 
 from .core import SSSError
 
-# ── Grup parametreleri: RFC 3526 2048-bit MODP (güvenli asal, doğrulanmış) ────
+# ── Group parameters: RFC 3526 2048-bit MODP (safe prime, verified) ──────────
 _P_HEX = (
     "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1"
     "29024E088A67CC74020BBEA63B139B22514A08798E3404DD"
@@ -41,22 +41,22 @@ _P_HEX = (
     "DE2BCBF6955817183995497CEA956AE515D2261898FA0510"
     "15728E5A8AACAA68FFFFFFFFFFFFFFFF"
 )
-P = int(_P_HEX, 16)          # 2048-bit güvenli asal
-Q = (P - 1) // 2             # asal — polinom cisminin ve alt grubun mertebesi
-G = 4                        # order-Q alt grubunun üreteci (2^2, daima QR)
+P = int(_P_HEX, 16)          # 2048-bit safe prime
+Q = (P - 1) // 2             # prime — order of the polynomial field and subgroup
+G = 4                        # generator of the order-Q subgroup (2^2, always a QR)
 
-# Sır, Z_q içinde tek bir tam sayı olarak kodlanır. Marker baytı (0x01) baştaki
-# sıfır baytlarını korur. En fazla bu kadar bayt kodlanabilir (m < Q şartı):
-MAX_SECRET_BYTES = (Q.bit_length() - 1) // 8 - 1   # 2048-bit için ~254 bayt
+# The secret is encoded as a single integer in Z_q. A marker byte (0x01) keeps
+# leading zero bytes. At most this many bytes can be encoded (m < Q constraint):
+MAX_SECRET_BYTES = (Q.bit_length() - 1) // 8 - 1   # ~254 bytes for a 2048-bit group
 
 
 class VSSError(SSSError):
-    """VSS'e özgü hatalar (temel SSSError'dan türer)."""
+    """VSS-specific errors (derives from the base SSSError)."""
 
 
 @dataclass
 class VSSShare:
-    """VSS payı: bir x noktası ve o noktadaki y = f(x) mod q değeri."""
+    """A VSS share: an x point and the value y = f(x) mod q at that point."""
 
     x: int
     y: int
@@ -65,27 +65,27 @@ class VSSShare:
 
 def _encode_secret(secret: bytes) -> int:
     if len(secret) == 0:
-        raise VSSError("Sır boş olamaz.")
+        raise VSSError("The secret cannot be empty.")
     if len(secret) > MAX_SECRET_BYTES:
         raise VSSError(
-            f"Sır çok uzun: {len(secret)} bayt. VSS için en fazla "
-            f"{MAX_SECRET_BYTES} bayt (2048-bit grup sınırı)."
+            f"The secret is too long: {len(secret)} bytes. At most "
+            f"{MAX_SECRET_BYTES} bytes for VSS (2048-bit group limit)."
         )
     m = int.from_bytes(b"\x01" + secret, "big")
     if m >= Q:
-        raise VSSError("Sır grup mertebesine sığmıyor (çok uzun).")
+        raise VSSError("The secret does not fit in the group order (too long).")
     return m
 
 
 def _decode_secret(m: int) -> bytes:
     raw = m.to_bytes((m.bit_length() + 7) // 8, "big")
     if not raw or raw[0] != 0x01:
-        raise VSSError("Geri getirilen değer geçersiz (paylar hatalı/eksik olabilir).")
+        raise VSSError("The recovered value is invalid (shares may be wrong/missing).")
     return raw[1:]
 
 
 def _eval_poly(coeffs: list[int], x: int) -> int:
-    """f(x) mod q — Horner yöntemi."""
+    """f(x) mod q — Horner's method."""
     result = 0
     for c in reversed(coeffs):
         result = (result * x + c) % Q
@@ -93,20 +93,20 @@ def _eval_poly(coeffs: list[int], x: int) -> int:
 
 
 def split(secret: bytes, threshold: int, shares: int) -> tuple[list[VSSShare], list[int]]:
-    """Sırrı (threshold, shares) = (k, n) ile böler.
+    """Split the secret with a (threshold, shares) = (k, n) scheme.
 
-    Dönüş: (paylar, taahhütler). Taahhütler herkese açık yayımlanır; herkes
-    kendi payını verify_share ile doğrular.
+    Returns (shares, commitments). The commitments are published publicly; anyone
+    verifies their own share with verify_share.
     """
     if threshold < 2:
-        raise VSSError("Eşik değeri (k) en az 2 olmalıdır.")
+        raise VSSError("The threshold (k) must be at least 2.")
     if shares < threshold:
-        raise VSSError(f"Pay sayısı (n={shares}) eşikten (k={threshold}) küçük olamaz.")
+        raise VSSError(f"The number of shares (n={shares}) cannot be less than the threshold (k={threshold}).")
     if shares > 255:
-        raise VSSError("Pay sayısı (n) en fazla 255 olabilir.")
+        raise VSSError("The number of shares (n) can be at most 255.")
 
     secret_int = _encode_secret(bytes(secret))
-    # coeffs[0] = sır; kalan k-1 katsayı Z_q'da kriptografik rastgele.
+    # coeffs[0] = secret; the remaining k-1 coefficients are cryptographically random in Z_q.
     coeffs = [secret_int] + [secrets.randbelow(Q) for _ in range(threshold - 1)]
 
     out = [
@@ -118,12 +118,13 @@ def split(secret: bytes, threshold: int, shares: int) -> tuple[list[VSSShare], l
 
 
 def verify_share(x: int, y: int, commitments: list[int]) -> bool:
-    """Pay (x, y) verilen taahhütlerle tutarlı mı? Sır öğrenilmeden kontrol edilir.
+    """Is share (x, y) consistent with the given commitments? Checked without
+    learning the secret.
 
-    g^y  ==  Π_j  C_j^(x^j)   (mod p)  ise pay geçerlidir.
+    Valid iff  g^y  ==  Π_j  C_j^(x^j)   (mod p).
     """
     if not commitments:
-        raise VSSError("Taahhüt listesi boş.")
+        raise VSSError("The commitment list is empty.")
     lhs = pow(G, y % Q, P)
     rhs = 1
     for j, c in enumerate(commitments):
@@ -132,7 +133,7 @@ def verify_share(x: int, y: int, commitments: list[int]) -> bool:
 
 
 def _lagrange_at_zero(points: list[tuple[int, int]]) -> int:
-    """(x, y) noktalarından f(0)'ı Z_q üzerinde hesaplar."""
+    """Compute f(0) over Z_q from the (x, y) points."""
     result = 0
     for i, (xi, yi) in enumerate(points):
         num = 1
@@ -148,15 +149,15 @@ def _lagrange_at_zero(points: list[tuple[int, int]]) -> int:
 
 
 def combine(shares: list[VSSShare]) -> bytes:
-    """Payları birleştirip sırrı geri getirir (en az k pay)."""
+    """Combine shares and reconstruct the secret (at least k shares)."""
     if len(shares) < 2:
-        raise VSSError("Birleştirme için en az 2 pay gerekir.")
+        raise VSSError("At least 2 shares are needed to combine.")
     seen: set[int] = set()
     for s in shares:
         if not (1 <= s.x <= 255):
-            raise VSSError(f"Geçersiz pay numarası x={s.x}.")
+            raise VSSError(f"Invalid share number x={s.x}.")
         if s.x in seen:
-            raise VSSError(f"Aynı pay numarası (x={s.x}) iki kez verildi.")
+            raise VSSError(f"The same share number (x={s.x}) was given twice.")
         seen.add(s.x)
     secret_int = _lagrange_at_zero([(s.x, s.y) for s in shares])
     return _decode_secret(secret_int)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tüm test süitlerini tek komutla çalıştırır:  python3 run_tests.py"""
+"""Run every test suite with one command:  python3 run_tests.py"""
 
 import sys
 
@@ -18,7 +18,7 @@ def main() -> int:
         print(f"\n########## {name} ##########")
         failures += module.main()
     print("\n" + "=" * 30)
-    print("TÜM TESTLER GEÇTİ ✔" if failures == 0 else f"{failures} SÜİT BAŞARISIZ ✖")
+    print("ALL TESTS PASSED ✔" if failures == 0 else f"{failures} SUITE(S) FAILED ✖")
     return 1 if failures else 0
 
 

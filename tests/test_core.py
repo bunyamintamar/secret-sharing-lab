@@ -1,6 +1,6 @@
-"""Çekirdek testleri: GF(256) aritmetiği ve böl/birleştir round-trip.
+"""Core tests: GF(256) arithmetic and split/combine round-trip.
 
-Bağımlılıksız çalışır:  python3 -m tests.test_core   (proje kökünden)
+Runs with no dependencies:  python3 -m tests.test_core   (from the project root)
 """
 
 import itertools
@@ -26,16 +26,16 @@ def check(condition: bool, message: str) -> None:
 
 
 def test_gf256_field_axioms() -> None:
-    # 1 çarpımsal birim
-    check(all(gf256.mul(1, a) == a for a in range(256)), "1 birim eleman")
-    # 0 ile çarpım daima 0
-    check(all(gf256.mul(0, a) == 0 for a in range(256)), "0 yutan eleman")
-    # Toplama = XOR ve kendini götürür
+    # 1 is the multiplicative identity
+    check(all(gf256.mul(1, a) == a for a in range(256)), "1 is the identity element")
+    # multiplying by 0 is always 0
+    check(all(gf256.mul(0, a) == 0 for a in range(256)), "0 is the absorbing element")
+    # addition = XOR and is self-canceling
     check(all(gf256.add(a, a) == 0 for a in range(256)), "a + a = 0")
-    # Her sıfırdan farklı elemanın tersi vardır: a * inv(a) = 1
+    # every nonzero element has an inverse: a * inv(a) = 1
     check(all(gf256.mul(a, gf256.inverse(a)) == 1 for a in range(1, 256)),
-          "çarpımsal ters")
-    # Bölme, çarpmanın tersidir: (a*b)/b == a
+          "multiplicative inverse")
+    # division is the inverse of multiplication: (a*b)/b == a
     ok = True
     for a in range(256):
         for b in range(1, 256):
@@ -45,43 +45,43 @@ def test_gf256_field_axioms() -> None:
         if not ok:
             break
     check(ok, "(a*b)/b == a")
-    # Dağılma: a*(b+c) == a*b + a*c (birkaç örnek)
+    # distributivity: a*(b+c) == a*b + a*c (a few examples)
     check(all(
         gf256.mul(a, gf256.add(b, c)) == gf256.add(gf256.mul(a, b), gf256.mul(a, c))
         for a, b, c in [(3, 7, 200), (255, 1, 128), (17, 17, 42)]
-    ), "dağılma özelliği")
+    ), "distributive property")
 
 
 def test_roundtrip_all_k_subsets() -> None:
-    secret = b"Gizli!"
+    secret = b"Secret!"
     shares = split(secret, threshold=3, shares=5)
-    check(len(shares) == 5, "5 pay üretildi")
-    # 3'lü tüm alt kümeler aynı sırrı vermeli
+    check(len(shares) == 5, "5 shares generated")
+    # every 3-subset must give the same secret
     all_ok = True
     for combo in itertools.combinations(shares, 3):
         if combine(list(combo)) != secret:
             all_ok = False
             break
-    check(all_ok, "herhangi 3 pay sırrı geri getirir")
-    # 4 ve 5 pay da çalışmalı
-    check(combine(shares[:4]) == secret, "4 pay ile round-trip")
-    check(combine(shares) == secret, "5 pay ile round-trip")
+    check(all_ok, "any 3 shares reconstruct the secret")
+    # 4 and 5 shares must also work
+    check(combine(shares[:4]) == secret, "round-trip with 4 shares")
+    check(combine(shares) == secret, "round-trip with 5 shares")
 
 
 def test_below_threshold_is_wrong() -> None:
-    # k-1 pay ile birleştirme yanlış sonuç verir (bilgi vermez).
-    secret = b"parola-1234"
+    # combining with k-1 shares gives a wrong result (reveals nothing).
+    secret = b"password-1234"
     shares = split(secret, threshold=3, shares=5)
-    wrong = combine(shares[:2])  # sadece 2 pay, k=3
-    check(wrong != secret, "k-1 pay sırrı vermez")
+    wrong = combine(shares[:2])  # only 2 shares, k=3
+    check(wrong != secret, "k-1 shares do not reveal the secret")
 
 
 def test_text_secret_roundtrip() -> None:
-    # Türkçe karakterli metin sır — UTF-8 üzerinden.
-    text = "Şifrem: gökçe-2024 🐢"
+    # Text secret with non-ASCII characters — via UTF-8.
+    text = "My password: café-2024 🐢"
     shares = split(text.encode("utf-8"), threshold=2, shares=3)
     recovered = combine([shares[0], shares[2]]).decode("utf-8")
-    check(recovered == text, "unicode metin round-trip")
+    check(recovered == text, "unicode text round-trip")
 
 
 def test_various_sizes() -> None:
@@ -92,7 +92,7 @@ def test_various_sizes() -> None:
         if combine(shares[:k]) != secret:
             ok = False
             break
-    check(ok, "çeşitli (k,n) boyutları round-trip")
+    check(ok, "round-trip across various (k,n) sizes")
 
 
 def test_validation_errors() -> None:
@@ -103,13 +103,13 @@ def test_validation_errors() -> None:
         except SSSError:
             return True
 
-    check(raises(lambda: split(b"x", 1, 3)), "k<2 reddedilir")
-    check(raises(lambda: split(b"x", 4, 3)), "n<k reddedilir")
-    check(raises(lambda: split(b"", 2, 3)), "boş sır reddedilir")
+    check(raises(lambda: split(b"x", 1, 3)), "k<2 is rejected")
+    check(raises(lambda: split(b"x", 4, 3)), "n<k is rejected")
+    check(raises(lambda: split(b"", 2, 3)), "empty secret is rejected")
     check(raises(lambda: combine([Share(1, b"ab"), Share(2, b"abc")])),
-          "farklı uzunluk reddedilir")
+          "different lengths are rejected")
     check(raises(lambda: combine([Share(1, b"ab"), Share(1, b"cd")])),
-          "tekrar eden x reddedilir")
+          "repeated x is rejected")
 
 
 def main() -> int:
@@ -124,7 +124,7 @@ def main() -> int:
     for test in tests:
         print(f"- {test.__name__}")
         test()
-    print(f"\n{_passed} kontrol geçti, {_failed} başarısız.")
+    print(f"\n{_passed} checks passed, {_failed} failed.")
     return 1 if _failed else 0
 
 

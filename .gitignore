@@ -5,16 +5,16 @@ __pycache__/
 .venv/
 venv/
 
-# İşletim sistemi
+# Operating system
 .DS_Store
 
-# Editör
+# Editors
 .vscode/
 .idea/
 
-# Claude Code oturum dosyaları
+# Claude Code session files
 .claude/
 
-# Üretilmiş paylar (sır içerebilir — asla commit'lenmemeli)
-paylar/
+# Generated shares (may contain secrets — must never be committed)
+shares/
 *.share

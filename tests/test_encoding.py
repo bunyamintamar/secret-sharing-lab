@@ -1,6 +1,6 @@
-"""Pay kodlama/çözme testleri: round-trip, sağlama, biçim hataları.
+"""Share encoding/decoding tests: round-trip, checksum, format errors.
 
-Bağımsız çalışır:  python3 -m tests.test_encoding   (proje kökünden)
+Runs standalone:  python3 -m tests.test_encoding   (from the project root)
 """
 
 import os
@@ -50,39 +50,39 @@ def test_roundtrip() -> None:
 def test_format_shape() -> None:
     line = encode_share(x=1, y=b"\x01\x02", threshold=2, set_id=0x000F)
     parts = line.split("-")
-    check(len(parts) == 6, "6 alanlı biçim")
-    check(parts[0] == "SSS1", "sürüm etiketi")
-    check(parts[1] == "000f", "set_id sıfır dolgulu 4 hane")
+    check(len(parts) == 6, "6-field format")
+    check(parts[0] == "SSS1", "version tag")
+    check(parts[1] == "000f", "set_id is zero-padded to 4 hex digits")
 
 
 def test_checksum_catches_typo() -> None:
     line = encode_share(x=5, y=b"\xde\xad\xbe\xef", threshold=3, set_id=0x1234)
-    # Veri kısmında tek bir haneyi boz
+    # corrupt a single digit in the data part
     idx = line.index("deadbeef")
     corrupted = line[:idx] + "de00beef" + line[idx + 8:]
-    check(raises(lambda: decode_share(corrupted)), "bozuk veri sağlamadan yakalanır")
+    check(raises(lambda: decode_share(corrupted)), "corrupted data is caught by the checksum")
 
 
 def test_whitespace_tolerant() -> None:
     line = encode_share(x=1, y=b"\xaa\xbb", threshold=2, set_id=0x00AB)
     parsed = decode_share(f"   {line}\n")
-    check(parsed.x == 1, "baştaki/sondaki boşluk temizlenir")
+    check(parsed.x == 1, "leading/trailing whitespace is trimmed")
 
 
 def test_bad_formats() -> None:
-    check(raises(lambda: decode_share("merhaba")), "alakasız metin reddedilir")
-    check(raises(lambda: decode_share("SSS1-0001-2-1")), "eksik alan reddedilir")
-    check(raises(lambda: decode_share("XXXX-0001-2-1-aabb-0000")), "yanlış önek reddedilir")
-    # x=0 geçersiz
+    check(raises(lambda: decode_share("hello")), "unrelated text is rejected")
+    check(raises(lambda: decode_share("SSS1-0001-2-1")), "missing fields are rejected")
+    check(raises(lambda: decode_share("XXXX-0001-2-1-aabb-0000")), "wrong prefix is rejected")
+    # x=0 is invalid
     body = "SSS1-0001-2-0-aabb"
     import zlib
     crc = zlib.crc32(body.encode()) & 0xFFFF
-    check(raises(lambda: decode_share(f"{body}-{crc:04x}")), "x=0 reddedilir")
+    check(raises(lambda: decode_share(f"{body}-{crc:04x}")), "x=0 is rejected")
 
 
 def test_set_id_range() -> None:
     ids = [new_set_id() for _ in range(200)]
-    check(all(0 <= i <= 0xFFFF for i in ids), "set_id 16-bit aralığında")
+    check(all(0 <= i <= 0xFFFF for i in ids), "set_id is in the 16-bit range")
 
 
 def main() -> int:
@@ -97,7 +97,7 @@ def main() -> int:
     for test in tests:
         print(f"- {test.__name__}")
         test()
-    print(f"\n{_passed} kontrol geçti, {_failed} başarısız.")
+    print(f"\n{_passed} checks passed, {_failed} failed.")
     return 1 if _failed else 0
 
 

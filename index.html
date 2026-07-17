@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Secret Sharing — Shamir &amp; Feldman VSS</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --surface-2:#f0f2f5; --text:#1a1c1f; --muted:#6b7280;
+  --border:#e3e6ea; --accent:#4f46b7; --accent-ink:#fff; --ok:#197a4c; --ok-bg:#e6f5ec;
+  --magenta:#9333a8; --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#16181c; --surface:#1e2126; --surface-2:#262a30; --text:#e8eaed; --muted:#9aa0aa;
+  --border:#333840; --accent:#8b82e6; --accent-ink:#16181c; --ok:#6bd39a; --ok-bg:#17301f;
+  --magenta:#d08be6;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);line-height:1.65;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:680px;margin:0 auto;padding:3rem 1.25rem 4rem}
+h1{margin:0 0 .5rem;font-size:1.9rem;letter-spacing:-.02em}
+.lead{margin:0 0 .5rem;color:var(--muted);font-size:1.05rem}
+.badge{display:inline-block;margin:.4rem 0 2rem;font-size:.78rem;color:var(--ok);
+  background:var(--ok-bg);border:1px solid var(--ok);border-radius:20px;padding:.15rem .8rem}
+.cards{display:grid;gap:1rem;grid-template-columns:1fr 1fr}
+@media (max-width:560px){.cards{grid-template-columns:1fr}}
+.card{display:block;text-decoration:none;color:inherit;background:var(--surface);
+  border:1px solid var(--border);border-radius:14px;padding:1.3rem 1.3rem 1.4rem;transition:border-color .15s,transform .15s}
+.card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.card .kicker{font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--accent)}
+.card.vss .kicker{color:var(--magenta)}
+.card h2{margin:.4rem 0 .5rem;font-size:1.2rem}
+.card p{margin:0 0 .9rem;color:var(--muted);font-size:.92rem}
+.card .go{font-size:.9rem;font-weight:600;color:var(--accent)}
+.card.vss .go{color:var(--magenta)}
+.section{margin-top:2.5rem}
+.section h3{font-size:1.05rem;margin:0 0 .6rem}
+.section p{margin:0 0 .8rem;color:var(--muted);font-size:.95rem}
+.section code{font-family:var(--mono);background:var(--surface-2);padding:.1rem .35rem;border-radius:5px;font-size:.88em}
+ul{padding-left:1.2rem;color:var(--muted);font-size:.95rem}
+li{margin-bottom:.3rem}
+.foot{margin-top:2.5rem;padding-top:1.2rem;border-top:1px solid var(--border);color:var(--muted);font-size:.85rem}
+a.inline{color:var(--accent)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>Secret Sharing</h1>
+  <p class="lead">Split a secret so that any <b>k</b> of <b>n</b> shares reconstruct it — and fewer reveal nothing. Two schemes, running entirely in your browser.</p>
+  <span class="badge">Offline · no server · no dependencies · nothing ever leaves the page</span>
+
+  <div class="cards">
+    <a class="card" href="shamir.html">
+      <div class="kicker">Shamir · GF(256)</div>
+      <h2>Secret Sharing</h2>
+      <p>The classic (k, n) threshold scheme. Fast, information-theoretically secure. Split a secret, then reconstruct it from any k shares.</p>
+      <span class="go">Open tool →</span>
+    </a>
+    <a class="card vss" href="vss.html">
+      <div class="kicker">Feldman · VSS</div>
+      <h2>Verifiable Secret Sharing</h2>
+      <p>Don't trust the dealer? Each share can be verified against public commitments without learning the secret. Cheating shares are caught.</p>
+      <span class="go">Open tool →</span>
+    </a>
+  </div>
+
+  <div class="section">
+    <h3>Which one do I need?</h3>
+    <ul>
+      <li><b>Shamir</b> — simple backup/recovery of a password, key, or seed phrase. Any k of n trusted holders can recover it.</li>
+      <li><b>VSS</b> — when the party creating the shares might be dishonest, or shares might be corrupted, and you need to detect it before combining.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>How it works</h3>
+    <p>The secret becomes the constant term of a random polynomial of degree k−1; shares are points on the curve. Any k points determine the polynomial (and the secret) via Lagrange interpolation; k−1 points reveal nothing. Shamir works byte-by-byte in the <code>GF(256)</code> field; VSS works in a 2048-bit prime field and adds <code>g^coefficient</code> commitments so each share is verifiable.</p>
+    <p>Both tools produce the same wire format as the command-line apps in this repository, so a share created on the web can be combined in the CLI and vice versa.</p>
+  </div>
+
+  <div class="foot">
+    Educational project. Source and command-line versions are in the repository.
+    For production use, prefer an audited library (e.g. SLIP-0039 implementations).
+  </div>
+</main>
+</body>
+</html>

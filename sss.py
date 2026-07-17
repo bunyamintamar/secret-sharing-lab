@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Shamir Secret Sharing — kullanıcı dostu konsol uygulaması.
+"""Shamir Secret Sharing — friendly console application.
 
-Çalıştırma:
+Run:
     python3 sss.py
 
-Bir sırrı (metni) n paya böler; herhangi k pay bir araya gelince sır geri gelir,
-k'den az pay hiçbir bilgi vermez. Tüm işlemler GF(256) sonlu cisminde yapılır.
+Splits a secret (text) into n shares; any k shares reconstruct it, fewer than k
+reveal no information. All operations happen in the GF(256) finite field.
 """
 
 from __future__ import annotations
@@ -26,61 +26,61 @@ from shamir.encoding import (
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Açıklama ekranı
+#  Explanation screen
 # ─────────────────────────────────────────────────────────────────────────────
 
 def show_intro() -> None:
-    ui.header("Shamir Secret Sharing nedir?")
+    ui.header("What is Shamir Secret Sharing?")
     print(f"""
-Bir sırrınız var: bir parola, bir şifreleme anahtarı, bir kurtarma cümlesi.
-Bunu {ui.BOLD}tek bir kişiye{ui.RESET} emanet etmek riskli (kaybeder, ele geçer),
-{ui.BOLD}herkese kopyalamak{ui.RESET} da riskli (herkes tek başına açar).
+You have a secret: a password, an encryption key, a recovery phrase.
+Entrusting it to {ui.BOLD}a single person{ui.RESET} is risky (they may lose it or be compromised);
+{ui.BOLD}copying it to everyone{ui.RESET} is risky too (anyone can unlock it alone).
 
-Shamir'in çözümü bir {ui.CYAN}(k, n) eşik şeması{ui.RESET}dır:
+Shamir's solution is a {ui.CYAN}(k, n) threshold scheme{ui.RESET}:
 """)
     ui.box([
-        f"{ui.BOLD}n{ui.RESET} = toplam pay sayısı (kaç parçaya böleceğiz)",
-        f"{ui.BOLD}k{ui.RESET} = eşik değeri (birleştirmek için gereken pay sayısı)",
+        f"{ui.BOLD}n{ui.RESET} = total number of shares (how many pieces to split into)",
+        f"{ui.BOLD}k{ui.RESET} = threshold (how many shares are needed to combine)",
         "",
-        f"{ui.GREEN}Herhangi k pay{ui.RESET}  → sır tamamen geri gelir",
-        f"{ui.YELLOW}k'den az pay{ui.RESET}   → sıfır bilgi (her sır eşit olası)",
+        f"{ui.GREEN}Any k shares{ui.RESET}   → the secret is fully reconstructed",
+        f"{ui.YELLOW}Fewer than k{ui.RESET}  → zero information (every secret equally likely)",
     ])
     print(f"""
-{ui.DIM}Nasıl çalışır?{ui.RESET} Sırrı, derecesi (k-1) olan gizli bir polinomun
-sabit terimi yaparız. Paylar bu eğri üzerindeki noktalardır. k nokta eğriyi
-benzersiz belirler ve sabit terimi (sırrı) verir; k-1 nokta ise sonsuz eğriye
-uyar, yani hiçbir şey ele vermez.
+{ui.DIM}How does it work?{ui.RESET} The secret becomes the constant term of a secret
+polynomial of degree (k-1). Shares are points on that curve. k points determine
+the curve uniquely and reveal the constant term (the secret); k-1 points fit
+infinitely many curves, so they give nothing away.
 
-{ui.DIM}Örnek (3, 5):{ui.RESET} Sırrı 5 paya böl, güvendiğin 5 kişiye ver.
-Herhangi 3'ü bir araya gelirse sır kurtulur; 2 kişi anlaşsa bile açamaz.
+{ui.DIM}Example (3, 5):{ui.RESET} Split the secret into 5 shares, hand them to 5
+people you trust. Any 3 together recover the secret; even 2 colluding cannot.
 """)
     ui.pause()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Sırrı böl
+#  Split the secret
 # ─────────────────────────────────────────────────────────────────────────────
 
 def do_split() -> None:
-    ui.header("Sırrı paylara böl")
-    ui.info("Önce sırrı, sonra pay sayısını ve eşik değerini soracağım.")
+    ui.header("Split the secret into shares")
+    ui.info("First I'll ask for the secret, then the number of shares and the threshold.")
     print()
 
     secret_text = ui.ask(
-        "Sır (bir satır metin):",
-        validator=lambda s: "Sır boş olamaz." if s == "" else None,
+        "Secret (one line of text):",
+        validator=lambda s: "The secret cannot be empty." if s == "" else None,
     )
     secret_bytes = secret_text.encode("utf-8")
-    ui.hint(f"{len(secret_bytes)} bayt uzunluğunda (UTF-8).")
+    ui.hint(f"{len(secret_bytes)} bytes (UTF-8).")
     print()
 
-    ui.info("Pay sayısı (n): sırrı kaç parçaya böleceğiz? (en fazla 255)")
-    n = ui.ask_int("Toplam pay sayısı n:", 2, 255)
+    ui.info("Number of shares (n): into how many pieces? (at most 255)")
+    n = ui.ask_int("Total shares n:", 2, 255)
 
     print()
-    ui.info(f"Eşik (k): bu {n} paydan kaç tanesi sırrı geri getirsin?")
-    ui.hint("k=n ise herkes gerekli; k küçüldükçe daha az pay yeter (ama daha az güvenli).")
-    k = ui.ask_int("Eşik değeri k:", 2, n)
+    ui.info(f"Threshold (k): how many of these {n} shares should reconstruct the secret?")
+    ui.hint("k=n means everyone is required; smaller k needs fewer shares (but is less secure).")
+    k = ui.ask_int("Threshold k:", 2, n)
 
     try:
         shares = split(secret_bytes, threshold=k, shares=n)
@@ -92,23 +92,23 @@ def do_split() -> None:
     encoded = [encode_share(s.x, s.y, k, set_id) for s in shares]
 
     print()
-    ui.success(f"{n} pay üretildi. Aşağıdaki paylardan herhangi {ui.BOLD}{k}{ui.RESET}"
-               f" tanesi sırrı geri getirir.")
-    ui.hint(f"Set kimliği: {set_id:04x} — aynı bölmeden çıkan tüm paylar bunu taşır.")
+    ui.success(f"{n} shares generated. Any {ui.BOLD}{k}{ui.RESET} of the shares below"
+               f" reconstruct the secret.")
+    ui.hint(f"Set id: {set_id:04x} — every share from this split carries it.")
     print()
 
     for i, line in enumerate(encoded, start=1):
         ui.box([
-            f"{ui.BOLD}Pay {i} / {n}{ui.RESET}",
+            f"{ui.BOLD}Share {i} / {n}{ui.RESET}",
             f"{ui.CYAN}{line}{ui.RESET}",
         ], color=ui.GRAY)
 
     print()
-    ui.warn("Payları FARKLI yerlerde/kişilerde sakla. Hepsi tek yerdeyse şema anlamsızdır.")
-    ui.warn(f"En az {k} payı kaybedersen sır KURTULAMAZ — yedeği yoktur.")
+    ui.warn("Store the shares in DIFFERENT places/people. If they all sit in one place the scheme is pointless.")
+    ui.warn(f"If you lose more than {n - k} shares the secret is UNRECOVERABLE — there is no backup.")
     print()
 
-    if ui.confirm("Payları dosyalara kaydedeyim mi?", default=False):
+    if ui.confirm("Save the shares to files?", default=False):
         _save_shares(encoded, set_id, k, n)
 
     ui.pause()
@@ -116,44 +116,44 @@ def do_split() -> None:
 
 def _save_shares(encoded: list[str], set_id: int, k: int, n: int) -> None:
     folder = ui.ask(
-        "Klasör yolu:",
-        validator=lambda s: "Boş olamaz." if s.strip() == "" else None,
+        "Folder path:",
+        validator=lambda s: "Cannot be empty." if s.strip() == "" else None,
     ).strip()
     folder = os.path.expanduser(folder)
     try:
         os.makedirs(folder, exist_ok=True)
     except OSError as exc:
-        ui.error(f"Klasör oluşturulamadı: {exc}")
+        ui.error(f"Could not create the folder: {exc}")
         return
 
     for i, line in enumerate(encoded, start=1):
-        path = os.path.join(folder, f"pay-{i:02d}.txt")
+        path = os.path.join(folder, f"share-{i:02d}.txt")
         try:
             with open(path, "w", encoding="utf-8") as fh:
-                fh.write(f"# Shamir Secret Sharing payı\n")
-                fh.write(f"# set={set_id:04x}  esik(k)={k}  toplam(n)={n}  pay={i}\n")
-                fh.write(f"# Birlestirme icin en az {k} pay dosyasi gerekir.\n")
+                fh.write("# Shamir Secret Sharing share\n")
+                fh.write(f"# set={set_id:04x}  threshold(k)={k}  total(n)={n}  share={i}\n")
+                fh.write(f"# Combining requires at least {k} share files.\n")
                 fh.write(line + "\n")
         except OSError as exc:
-            ui.error(f"'{path}' yazılamadı: {exc}")
+            ui.error(f"Could not write '{path}': {exc}")
             return
 
-    ui.success(f"{n} pay '{folder}' klasörüne kaydedildi (pay-01.txt … pay-{n:02d}.txt).")
+    ui.success(f"{n} shares saved to '{folder}' (share-01.txt … share-{n:02d}.txt).")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Payları birleştir
+#  Combine the shares
 # ─────────────────────────────────────────────────────────────────────────────
 
 def do_combine() -> None:
-    ui.header("Payları birleştir")
-    ui.info("Payları elle yapıştırarak ya da dosya klasöründen yükleyerek verebilirsin.")
+    ui.header("Combine shares")
+    ui.info("You can provide shares by pasting them or by loading a folder of files.")
     print()
 
-    print(f"  {ui.BOLD}1{ui.RESET}) Payları tek tek yapıştır")
-    print(f"  {ui.BOLD}2{ui.RESET}) Bir klasördeki dosyalardan yükle")
+    print(f"  {ui.BOLD}1{ui.RESET}) Paste shares one by one")
+    print(f"  {ui.BOLD}2{ui.RESET}) Load from files in a folder")
     print()
-    choice = ui.ask_int("Seçim:", 1, 2)
+    choice = ui.ask_int("Choice:", 1, 2)
 
     if choice == 1:
         parsed = _collect_shares_pasted()
@@ -161,7 +161,7 @@ def do_combine() -> None:
         parsed = _collect_shares_from_files()
 
     if not parsed:
-        ui.warn("Hiç geçerli pay alınmadı, birleştirme iptal.")
+        ui.warn("No valid shares received, combining cancelled.")
         ui.pause()
         return
 
@@ -170,7 +170,7 @@ def do_combine() -> None:
 
 
 def _collect_shares_pasted() -> list[ParsedShare]:
-    ui.info("Her satıra bir pay yapıştır. Bitince boş satır bırak (Enter).")
+    ui.info("Paste one share per line. Leave a blank line to finish (Enter).")
     collected: list[ParsedShare] = []
     threshold_hint: int | None = None
 
@@ -179,10 +179,10 @@ def _collect_shares_pasted() -> list[ParsedShare]:
         if threshold_hint is not None:
             need = threshold_hint - len(collected)
             if need > 0:
-                remaining = f"{ui.GRAY}(en az {need} pay daha){ui.RESET}"
+                remaining = f"{ui.GRAY}(at least {need} more){ui.RESET}"
             else:
-                remaining = f"{ui.GREEN}(yeterli, bitirmek için Enter){ui.RESET}"
-        line = ui.ask(f"Pay {len(collected) + 1} {remaining}:")
+                remaining = f"{ui.GREEN}(enough, press Enter to finish){ui.RESET}"
+        line = ui.ask(f"Share {len(collected) + 1} {remaining}:")
         if line.strip() == "":
             break
         try:
@@ -191,23 +191,23 @@ def _collect_shares_pasted() -> list[ParsedShare]:
             ui.error(str(exc))
             continue
         if any(s.x == share.x for s in collected):
-            ui.warn(f"x={share.x} numaralı pay zaten eklenmiş, atlandı.")
+            ui.warn(f"Share x={share.x} is already added, skipped.")
             continue
         collected.append(share)
         threshold_hint = share.threshold
-        ui.success(f"Pay eklendi (x={share.x}). Toplam {len(collected)} pay.")
+        ui.success(f"Share added (x={share.x}). Total {len(collected)} shares.")
 
     return collected
 
 
 def _collect_shares_from_files() -> list[ParsedShare]:
     folder = ui.ask(
-        "Pay dosyalarının bulunduğu klasör:",
-        validator=lambda s: "Boş olamaz." if s.strip() == "" else None,
+        "Folder containing the share files:",
+        validator=lambda s: "Cannot be empty." if s.strip() == "" else None,
     ).strip()
     folder = os.path.expanduser(folder)
     if not os.path.isdir(folder):
-        ui.error(f"Klasör bulunamadı: {folder}")
+        ui.error(f"Folder not found: {folder}")
         return []
 
     collected: list[ParsedShare] = []
@@ -235,27 +235,27 @@ def _collect_shares_from_files() -> list[ParsedShare]:
             collected.append(share)
 
     if collected:
-        ui.success(f"{len(collected)} geçerli pay yüklendi.")
+        ui.success(f"{len(collected)} valid shares loaded.")
     else:
-        ui.warn("Klasörde geçerli pay bulunamadı.")
+        ui.warn("No valid shares found in the folder.")
     return collected
 
 
 def _try_reconstruct(parsed: list[ParsedShare]) -> None:
-    # Set kimlikleri farklıysa büyük ihtimalle farklı sırların payları karışmış.
+    # Different set ids probably mean shares from different secrets got mixed.
     set_ids = {s.set_id for s in parsed}
     if len(set_ids) > 1:
-        ui.warn("Paylar farklı bölmelerden geliyor (set kimlikleri farklı) — "
-                "muhtemelen ayrı sırların payları karıştı. Sonuç anlamsız olabilir.")
+        ui.warn("Shares come from different splits (set ids differ) — "
+                "shares from separate secrets were probably mixed. The result may be meaningless.")
 
     thresholds = {s.threshold for s in parsed}
     k = min(thresholds)
     if len(thresholds) > 1:
-        ui.warn(f"Paylar farklı eşik değerleri bildiriyor {sorted(thresholds)}; "
-                f"en küçüğü ({k}) kullanılacak.")
+        ui.warn(f"Shares report different thresholds {sorted(thresholds)}; "
+                f"the smallest ({k}) will be used.")
 
     if len(parsed) < k:
-        ui.error(f"Yeterli pay yok: {len(parsed)} pay var, en az {k} gerekiyor.")
+        ui.error(f"Not enough shares: {len(parsed)} present, at least {k} required.")
         return
 
     shares = [Share(x=s.x, y=s.y) for s in parsed]
@@ -268,26 +268,26 @@ def _try_reconstruct(parsed: list[ParsedShare]) -> None:
     print()
     try:
         text = secret_bytes.decode("utf-8")
-        ui.success("Sır başarıyla geri getirildi:")
+        ui.success("Secret successfully reconstructed:")
         ui.box([f"{ui.GREEN}{ui.BOLD}{text}{ui.RESET}"], color=ui.GREEN)
     except UnicodeDecodeError:
-        ui.warn("Sonuç geçerli bir metin değil (paylar hatalı ya da eksik olabilir).")
-        ui.box([f"Ham bayt (hex): {secret_bytes.hex()}"], color=ui.YELLOW)
+        ui.warn("The result is not valid text (shares may be wrong or missing).")
+        ui.box([f"Raw bytes (hex): {secret_bytes.hex()}"], color=ui.YELLOW)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Ana menü
+#  Main menu
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main_menu() -> None:
-    ui.header("Shamir Secret Sharing — Konsol")
-    print(f"{ui.DIM}Bir sırrı paylara böl, sonra eşik sayıda payla geri getir.{ui.RESET}")
+    ui.header("Shamir Secret Sharing — Console")
+    print(f"{ui.DIM}Split a secret into shares, then reconstruct it with a threshold number of shares.{ui.RESET}")
 
     actions = {
-        "1": ("Sırrı paylara böl", do_split),
-        "2": ("Payları birleştir (sırrı geri getir)", do_combine),
-        "3": ("Shamir Secret Sharing nedir?", show_intro),
-        "4": ("Çıkış", None),
+        "1": ("Split a secret into shares", do_split),
+        "2": ("Combine shares (reconstruct the secret)", do_combine),
+        "3": ("What is Shamir Secret Sharing?", show_intro),
+        "4": ("Exit", None),
     }
 
     while True:
@@ -297,14 +297,14 @@ def main_menu() -> None:
             print(f"  {ui.BOLD}{ui.CYAN}{key}{ui.RESET}) {label}")
         ui.rule()
 
-        choice = ui.ask("Seçiminiz:").strip()
+        choice = ui.ask("Your choice:").strip()
         if choice not in actions:
-            ui.error("Geçersiz seçim, lütfen menüden bir numara girin.")
+            ui.error("Invalid choice, please enter a number from the menu.")
             continue
 
         label, func = actions[choice]
         if func is None:
-            print(f"\n{ui.CYAN}Görüşürüz! Paylarını güvende tut.{ui.RESET}\n")
+            print(f"\n{ui.CYAN}See you! Keep your shares safe.{ui.RESET}\n")
             return
         func()
 
@@ -313,7 +313,7 @@ def main() -> int:
     try:
         main_menu()
     except KeyboardInterrupt:
-        print(f"\n\n{ui.GRAY}İptal edildi. Çıkılıyor.{ui.RESET}\n")
+        print(f"\n\n{ui.GRAY}Cancelled. Exiting.{ui.RESET}\n")
     return 0
 
 
