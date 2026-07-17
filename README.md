@@ -47,6 +47,10 @@ python3 vss.py
 Menü: sırrı böl (taahhütlerle) · **payımı doğrula** · payları birleştir
 (isteğe bağlı doğrulamayla, bozuk paylar elenir) · açıklama.
 
+Sunucusuz tek dosya sürümü de var: `vss.html` dosyasına **çift tıkla**. Tüm
+işlemler tarayıcıda BigInt ile çalışır; pay/taahhüt biçimi `vss.py` ile birebir
+uyumludur (CLI'da üretileni tarayıcıda doğrulayıp birleştirebilirsin, tersi de).
+
 Şema: RFC 3526 2048-bit güvenli asal grubu, `C_j = g^(a_j) mod p` taahhütleri,
 `g^pay == Π C_j^(x^j)` doğrulaması, `Z_q` üzerinde Lagrange. Sır en fazla ~254
 bayt (tek grup elemanı olarak kodlanır). Ayrıntı: [shamir/vss.py](shamir/vss.py).
@@ -87,6 +91,7 @@ SSS1-dba9-3-2-88cfe0cad01d356751...-b15f
 
 ```
 shamir.html            Tek dosya, sunucusuz tarayıcı arayüzü (temel SSS)
+vss.html               Tek dosya, sunucusuz tarayıcı arayüzü (Feldman VSS)
 sss.py                 Temel SSS konsol uygulaması (GF(256))
 vss.py                 Doğrulanabilir SS konsol uygulaması (Feldman VSS)
 run_tests.py           Tüm testleri çalıştırır
